@@ -27,7 +27,7 @@ opt <- getopt(spec)
 out <- bold_seqspec(taxon=opt$taxon, sepfasta = TRUE)
 meta <- out[['data']]
 fasta <- out[['fasta']]
-
+print(paste(nrows(meta), ' records found'))
 
 ####################################
 # Filter dataframe and write to file
@@ -42,10 +42,14 @@ meta$fasta_id <- gsub(" ", "_", meta$fasta_id)
 
 # Filter out GenBank sequences
 filter <- meta %>% filter(institution_storing!='Mined from GenBank, NCBI')
+print(paste(nrows(filter), ' records remaining after GenBank samples removed'))
+
 filter <- filter %>% distinct(bin_uri, .keep_all = TRUE)
+print(paste(nrows(filter), ' unique bins remaining'))
 
 # Write metadata to CSV
 write.csv(filter, opt$metadata, row.names = FALSE)
+print(paste('Metadata saved to ', opt$meta))
 
 # Get in same format as genbank metadata/mitogenome metadata?
 
@@ -73,5 +77,6 @@ for (i in seq_along(fasta)) {
 
 # Write the named list to a FASTA file
 write.fasta(fasta, names(fasta), opt$fasta)
+print(paste('Sequences saved to ', opt$fasta))
 
 
