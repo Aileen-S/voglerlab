@@ -39,8 +39,6 @@ meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which
 # Add column for fasta IDs
 meta$fasta_id <- paste(meta$processid, meta$family_name, meta$subfamily_name, meta$species_name, sep = '_')
 meta$fasta_id <- gsub(" ", "_", meta$fasta_id)
-meta$fasta_id
-
 
 # Filter out GenBank sequences
 filter <- meta %>% filter(institution_storing!='Mined from GenBank, NCBI')
