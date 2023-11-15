@@ -64,7 +64,7 @@ print(paste('Metadata saved to ', opt$meta))
 #######################
 
 # Save process IDs
-ids <- filter$processid
+ids <- f_meta$processid
 
 # Filter fasta
 fasta <- fasta[ids]
