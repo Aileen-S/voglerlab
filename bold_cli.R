@@ -18,18 +18,18 @@ spec <- matrix(c(
 
 opt <- getopt(spec)
 
-
 ##############################
 # Download fastas and metadata
 ##############################
 
 # Download metadata and fastas together
+
 out <- bold_seqspec(taxon=opt$taxon, sepfasta = TRUE)
 meta <- out[['data']]
 fasta <- out[['fasta']]
 print(paste(nrow(meta), ' records found'))
-write.csv(meta, paste('raw_', opt$metadata), row.names = FALSE)
-write.fasta(fasta, names(fasta), paste('raw_', opt$fasta))
+write.csv(meta, paste('raw', opt$metadata, sep = _), row.names = FALSE)
+write.fasta(fasta, names(fasta), paste('raw', opt$fasta, sep = '_'))
 
 ####################################
 # Filter dataframe and write to file
@@ -41,22 +41,19 @@ meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which
 # Add column for fasta IDs
 meta$fasta_id <- paste(meta$processid, meta$family_name, meta$subfamily_name, meta$species_name, sep = '_')
 meta$fasta_id <- gsub(" ", "_", meta$fasta_id)
-
-df <- meta
-df <- df %>% select(processid, markercode, genbank_accession)
-
+meta$genbank_accession
 # Filter out GenBank sequences
-filter <- meta %>% filter(genbank_accession=="")
-print(paste(nrow(filter), ' records remaining after those also on GenBank removed'))
+f_meta <- meta %>% drop_na(genbank_accession)
+print(paste(nrow(f_meta), ' records remaining after those also on GenBank removed'))
 
-filter <- filter %>% filter(markercode=="COI-5P|COI-3P")
-print(paste(nrow(filter), ' records remaining with COI-5P sequences'))
+f_meta <- f_meta %>% filter(markercode=="COI-5P"|markercode=="COI-3P")
+print(paste(nrow(f_meta), ' records remaining with COI-5P sequences'))
 
-filter <- filter %>% distinct(bin_uri, .keep_all = TRUE)
-print(paste(nrow(filter), ' unique bins remaining'))
+f_meta <- f_meta %>% distinct(bin_uri, .keep_all = TRUE)
+print(paste(nrow(f_meta), ' unique bins remaining'))
 
 # Write metadata to CSV
-write.csv(filter, opt$metadata, row.names = FALSE)
+write.csv(f_meta, opt$metadata, row.names = FALSE)
 print(paste('Metadata saved to ', opt$meta))
 
 # Get in same format as genbank metadata/mitogenome metadata?
