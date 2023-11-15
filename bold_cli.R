@@ -41,8 +41,8 @@ meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which
 # Add column for fasta IDs
 meta$fasta_id <- paste(meta$processid, meta$family_name, meta$subfamily_name, meta$species_name, sep = '_')
 meta$fasta_id <- gsub(" ", "_", meta$fasta_id)
-meta$genbank_accession
-# Filter out GenBank sequences
+
+G# Filter out GenBank sequences
 f_meta <- meta %>% drop_na(genbank_accession)
 print(paste(nrow(f_meta), ' records remaining after those also on GenBank removed'))
 
@@ -73,7 +73,7 @@ fasta <- fasta[ids]
 # Update the identifiers in your list
 for (i in seq_along(fasta)) {
   old_identifier <- names(fasta)[i]
-  new_identifier <- filter$fasta_id[filter$processid == old_identifier]
+  new_identifier <- f_meta$fasta_id[f_meta$processid == old_identifier]
   # If a corresponding new identifier is found, update the name in the list
   if (!is.na(new_identifier) && length(new_identifier) == 1) {
     names(fasta)[i] <- new_identifier
