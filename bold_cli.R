@@ -42,7 +42,7 @@ meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which
 meta$fasta_id <- paste(meta$processid, meta$family_name, meta$subfamily_name, meta$species_name, sep = '_')
 meta$fasta_id <- gsub(" ", "_", meta$fasta_id)
 
-G# Filter out GenBank sequences
+# Filter out GenBank sequences
 f_meta <- meta %>% drop_na(genbank_accession)
 print(paste(nrow(f_meta), ' records remaining after those also on GenBank removed'))
 
