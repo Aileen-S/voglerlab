@@ -40,9 +40,15 @@ meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which
 meta$fasta_id <- paste(meta$processid, meta$family_name, meta$subfamily_name, meta$species_name, sep = '_')
 meta$fasta_id <- gsub(" ", "_", meta$fasta_id)
 
+df <- meta
+df <- df %>% select(processid, markercode, genbank_accession)
+
 # Filter out GenBank sequences
-filter <- meta %>% filter(institution_storing!='Mined from GenBank, NCBI')
-print(paste(nrow(filter), ' records remaining after GenBank samples removed'))
+filter <- meta %>% filter(genbank_accession=="")
+print(paste(nrow(filter), ' records remaining after those also on GenBank removed'))
+
+filter <- filter %>% filter(markercode=="COI-5P|COI-3P")
+print(paste(nrow(filter), ' records remaining with COI-5P sequences'))
 
 filter <- filter %>% distinct(bin_uri, .keep_all = TRUE)
 print(paste(nrow(filter), ' unique bins remaining'))
