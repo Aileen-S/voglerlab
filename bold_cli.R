@@ -28,6 +28,8 @@ out <- bold_seqspec(taxon=opt$taxon, sepfasta = TRUE)
 meta <- out[['data']]
 fasta <- out[['fasta']]
 print(paste(nrow(meta), ' records found'))
+write.csv(meta, paste('raw_', opt$metadata), row.names = FALSE)
+write.fasta(fasta, names(fasta), paste('raw_', opt$fasta))
 
 ####################################
 # Filter dataframe and write to file
