@@ -28,7 +28,7 @@ out <- bold_seqspec(taxon=opt$taxon, sepfasta = TRUE)
 meta <- out[['data']]
 fasta <- out[['fasta']]
 print(paste(nrow(meta), ' records found'))
-write.csv(meta, paste('raw', opt$metadata, sep = _), row.names = FALSE)
+write.csv(meta, paste('raw', opt$metadata, sep = '_'), row.names = FALSE)
 write.fasta(fasta, names(fasta), paste('raw', opt$fasta, sep = '_'))
 
 ####################################
