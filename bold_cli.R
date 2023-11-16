@@ -36,6 +36,7 @@ opt <- getopt(spec)
 #  stop('Choose either taxon or csv&sequences, not both.')
 #}
 
+  # BOLD web search
 if ( !is.null(opt$taxon) ) {
   out <- bold_seqspec(taxon=opt$taxon, sepfasta = TRUE)
   meta <- out[['data']]
@@ -45,11 +46,17 @@ if ( !is.null(opt$taxon) ) {
   print(paste('Saved metadata to raw_', opt$metadata, sep = ''))
   write.fasta(fasta, names(fasta), paste('raw', opt$fasta, sep = '_'))
   print(paste('Saved sequences to raw_', opt$fasta, sep = ''))
+  
+  # Search existing files  
   } else {
   meta <- read.csv(opt$csv)
   fasta <- read.fasta(opt$sequences)
+  # Filter csv to remove records not present in fasta
+  meta <- subset(meta, processid %in% names(fasta))
   } 
 
+fasta <- read.fasta('raw_Dytiscidae.fasta')
+meta <- read.csv('raw_Dytiscidae.csv')
 ####################################
 # Filter dataframe and write to file
 ####################################
