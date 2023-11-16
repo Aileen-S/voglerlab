@@ -55,8 +55,6 @@ if ( !is.null(opt$taxon) ) {
   meta <- subset(meta, processid %in% names(fasta))
   } 
 
-fasta <- read.fasta('raw_Dytiscidae.fasta')
-meta <- read.csv('raw_Dytiscidae.csv')
 ####################################
 # Filter dataframe and write to file
 ####################################
