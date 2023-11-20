@@ -74,7 +74,7 @@ if ( !is.null(opt$genbank) ) {
     f_meta <- meta
   }
 # Keep only COI sequences
-f_meta <- f_meta %>% filter(markercode=="COI-5P"|markercode=="COI-3P")
+f_meta <- f_meta %>% filter(markercode=="COI-5P")
 print(paste(nrow(f_meta), 'records with COI-5P sequences'))
 
 # Keep one record per bin
