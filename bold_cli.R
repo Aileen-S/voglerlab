@@ -68,7 +68,7 @@ meta$fasta_id <- gsub(" ", "_", meta$fasta_id)
 
 # Filter out GenBank sequences
 if ( !is.null(opt$genbank) ) {
-  f_meta <- meta %>% drop_na(genbank_accession)
+  f_meta <- meta %>% filter(genbank_accession=="")
   print(paste(nrow(f_meta), 'records remaining after those also on GenBank removed'))
 } else {
     f_meta <- meta
