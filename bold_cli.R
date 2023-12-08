@@ -81,6 +81,20 @@ print(paste(nrow(f_meta), 'records with COI-5P sequences'))
 f_meta <- f_meta %>% distinct(bin_uri, .keep_all = TRUE)
 print(paste(nrow(f_meta), 'unique BINs. Saved one sequence for each BIN.'))
 
+# Edit dataframe to match genbank output
+f_meta <- f_meta %>% select(processid, bin_uri, markercode, species_name, family_name, subfamily_name, genus_name, lat, lon)
+  
+empty <- c('BOLD', 'Misc', 'ATP6', 'ATP8', 'COX2', 'COX3', 'CYTB', 'ND1',
+           'ND2', 'ND3', 'ND4','ND4L', 'ND5', 'ND6', 'Suborder', 'Infraorder', 
+           'Superfamily', 'Tribe', 'Description', 'Date', 'Last Modified', 'Date Collected', 
+           'Country', 'Region')
+f_meta[ , empty] <- NA
+f_meta <- f_meta %>% select(processid, bin_uri, BOLD, species_name, Misc, ATP6, 
+                            ATP8, markercode, COX2, COX3, CYTB, ND1, ND2, ND3, 
+                            ND4, ND4L, ND5, ND6, Suborder, Infraorder, Superfamily,
+                            family_name, subfamily_name, genus_name, Description, 
+                            Date, 'Last Modified', 'Date Collected', Country, Region, lat, lon)
+
 # Write metadata to CSV
 write.csv(f_meta, opt$metadata, row.names = FALSE)
 print(paste('Metadata saved to', opt$meta))
