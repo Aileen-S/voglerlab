@@ -21,6 +21,7 @@ tips <- strsplit(read_file(opt$tips), '\n')
 
 # Save tips as vector
 tips <- unlist(tips)
+print(length(tips), 'taxa in,' opt$tips)
 
 # Open tree
 tree <- read.tree(opt$input)
@@ -35,4 +36,5 @@ if ( !is.null(opt$keep) ) {
 
 # Write new tree
 write.tree(new, opt$output)
+print('New tree saved to', opt$output)
 
