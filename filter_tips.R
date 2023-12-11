@@ -10,7 +10,8 @@ library('getopt')
 # column 5 = optional, description/help message
 spec <- matrix(c(
   'input',  'i', 1, 'character', 'Input tree file',
-  'tips',   't', 1, 'character', 'File with tips to remove',
+  'tips',   't', 1, 'character', 'File with tip names. Default is to remove these tips from tree',
+  'keep',   'k', 2, 'logical', 'Keep tips in tips file and remove those not in file',
   'output', 'o', 1, 'character', 'Output tree file'
 ), byrow = T, ncol = 5)
 opt <- getopt(spec)
@@ -24,8 +25,13 @@ tips <- unlist(tips)
 # Open tree
 tree <- read.tree(opt$input)
 
-# Remove tips
-new <- drop.tip(tree, tips)
+# Keep tips in tips file if -f flag used
+if ( !is.null(opt$keep) ) {
+  new <- keep.tip(tree, tips)
+# Otherwise remove tips in tips file
+} else {
+  new <- drop.tip(tree, tips)
+}
 
 # Write new tree
 write.tree(new, opt$output)
