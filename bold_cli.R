@@ -86,10 +86,10 @@ f_meta <- f_meta %>% select(fasta_id, processid, bin_uri, markercode, species_na
   
 empty <- c('BOLD', 'Misc', 'ATP6', 'ATP8', 'COX2', 'COX3', 'CYTB', 'ND1',
            'ND2', 'ND3', 'ND4','ND4L', 'ND5', 'ND6', 'Suborder', 'Infraorder', 
-           'Superfamily', 'Tribe', 'Description', 'Date', 'Last Modified', 'Date Collected', 
+           'Superfamily', 'Tribe', 'Description', 'Date Last Modified', 'Date Collected', 
            'Country', 'Region', 'latlon')
 f_meta[ , empty] <- NA
-f_meta[ , Count] <- '1'
+f_meta$Count <- 1
 f_meta <- f_meta %>% select(fasta_id, processid, bin_uri, BOLD, species_name, Count, Misc, ATP6, 
                             ATP8, markercode, COX2, COX3, CYTB, ND1, ND2, ND3, 
                             ND4, ND4L, ND5, ND6, Suborder, Superfamily,
