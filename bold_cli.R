@@ -21,11 +21,24 @@ spec <- matrix(c(
   'csv',        'c', 2, 'character', 'Path to existing BOLD metadata to be filtered',
   'sequences',  's', 2, 'character', 'Path to existing fasta to be filtered',
   'genbank',    'g', 2, 'logical',   'Remove sequences also on GenBank',
-  'fasta',      'f', 1, 'character', 'Output fasta file',
-  'metadata',   'm', 1, 'character', 'Output metadata csv'
+  'barcode',    'b', 2, 'character', 'Save only barcodes, delete other genes',
+  'metadata',   'm', 1, 'character', 'Read genbank metadata file to get TXIDs'
 ), byrow = T, ncol = 5)
 
 opt <- getopt(spec)
+
+names <- c('18S-3P' = '18S',
+            '28S-D2' = '28S',
+            'ArgK'   = 'AK',
+            'COI-3P' = 'COX1b',
+            'COI-5P' = 'COX1a',
+            'COI-5PNMT1' = 'COX1a',
+            'COII'   = 'COX2',
+            'COIII' = 'COX3',
+            'EF1-alpha' = 'EF1A',
+            'ND5-0' = 'ND5',
+            'Wnt1' = 'Wg')
+
 
 ##############################
 # Get fastas and metadata
@@ -42,10 +55,12 @@ if ( !is.null(opt$taxon) ) {
   meta <- out[['data']]
   fasta <- out[['fasta']]
   print(paste(nrow(meta), 'records found for', opt$taxon))
-  write.csv(meta, paste('raw', opt$metadata, sep = '_'), row.names = FALSE)
-  print(paste('Saved metadata to raw_', opt$metadata, sep = ''))
-  write.fasta(fasta, names(fasta), paste('raw', opt$fasta, sep = '_'))
-  print(paste('Saved sequences to raw_', opt$fasta, sep = ''))
+  write.csv(meta, 'raw_metadata.csv', row.names = FALSE)
+  print('Saved metadata to raw_metadata.csv')
+  write.fasta(fasta, names(fasta), 'raw.fasta')
+  print('Saved sequences to raw.fasta')
+  
+  #out <- bold_seqspec(taxon='Cybister', sepfasta = TRUE)
   
   # Search existing files  
   } else {
@@ -62,10 +77,6 @@ if ( !is.null(opt$taxon) ) {
 # Add sp for empty species values
 meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which(meta$species_name == "")], 'sp', sep = "_")
 
-# Add column for fasta IDs
-meta$fasta_id <- paste(meta$processid, meta$family_name, meta$subfamily_name, meta$species_name, sep = '_')
-meta$fasta_id <- gsub(" ", "_", meta$fasta_id)
-
 # Filter out GenBank sequences
 if ( !is.null(opt$genbank) ) {
   f_meta <- meta %>% filter(genbank_accession=="")
@@ -74,58 +85,98 @@ if ( !is.null(opt$genbank) ) {
     f_meta <- meta
   }
 # Keep only COI sequences
-f_meta <- f_meta %>% filter(markercode=="COI-5P")
-print(paste(nrow(f_meta), 'records with COI-5P sequences'))
+if ( !is.null(opt$barcode)) {
+  f_meta <- f_meta %>% filter(markercode=="COI-5P")
+  print(paste(nrow(f_meta), 'records with COI-5P sequences'))
+}
+
+# Remove records without names genes or BINS
+f_meta <- f_meta %>% filter(markercode!="")
+f_meta <- f_meta %>% filter(bin_uri!="")
+
 
 # Keep one record per bin
-f_meta <- f_meta %>% distinct(bin_uri, .keep_all = TRUE)
+f_meta <- f_meta %>% distinct(bin_uri, markercode, .keep_all = TRUE)
 print(paste(nrow(f_meta), 'unique BINs. Saved one sequence for each BIN.'))
 
-# Edit dataframe to match genbank output
-f_meta <- f_meta %>% select(fasta_id, processid, bin_uri, markercode, species_name, family_name, subfamily_name, genus_name, lat, lon)
+# Get NCBI TXIDs
+if ( !is.null(opt$metadata)) {
+  ncbi <- read.csv(opt$metadata)
+  ncbi <- ncbi %>% distinct(TXID, .keep_all = TRUE)
+  ncbi <- ncbi %>% select(TXID, Species)
+  names(ncbi)[names(ncbi)=="Species"] <- 'species_name'
   
-empty <- c('BOLD', 'Misc', 'ATP6', 'ATP8', 'COX2', 'COX3', 'CYTB', 'ND1',
-           'ND2', 'ND3', 'ND4','ND4L', 'ND5', 'ND6', 'Suborder', 'Infraorder', 
+  # Merge NCBI TXIDs with BOLD data
+  f_meta <- merge(f_meta, ncbi, by = 'species_name', all.x = TRUE)
+# 
+} else {
+  f_meta[ , 'TXID'] <- ''
+}
+
+# Add column for fasta IDs
+f_meta$fasta_id <- ifelse(is.na(f_meta$TXID), 
+                          paste(f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''), 
+                          paste(f_meta$TXID, '/_', f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''))
+
+f_meta$fasta_id <- gsub(" ", "_", f_meta$fasta_id)
+
+#Edit dataframe to match genbank output
+f_meta <- f_meta %>% select(fasta_id, processid, TXID, bin_uri, markercode, species_name, family_name, subfamily_name, genus_name, lat, lon)
+empty <- c('Length', 'Suborder', 'Infraorder', 
            'Superfamily', 'Tribe', 'Description', 'Date Last Modified', 'Date Collected', 
            'Country', 'Region', 'latlon')
-f_meta[ , empty] <- NA
-f_meta$Count <- 1
-f_meta <- f_meta %>% select(fasta_id, processid, bin_uri, BOLD, species_name, Count, Misc, ATP6, 
-                            ATP8, markercode, COX2, COX3, CYTB, ND1, ND2, ND3, 
-                            ND4, ND4L, ND5, ND6, Suborder, Superfamily,
+f_meta[ , empty] <- ''
+f_meta <- f_meta %>% select(fasta_id, processid, TXID, bin_uri, species_name, markercode, Length, Suborder, Superfamily,
                             family_name, subfamily_name, genus_name, Description, 
                             'Date Last Modified', 'Date Collected', Country, Region, latlon, lat, lon)
 
 # Write metadata to CSV
-write.csv(f_meta, opt$metadata, row.names = FALSE)
-print(paste('Metadata saved to', opt$meta))
+write.csv(f_meta, 'metadata.csv', row.names = FALSE)
+print('Metadata saved to metadata.csv')
 
-# Get in same format as genbank metadata/mitogenome metadata?
+# Get list of gene names
+genes <-c(unique(f_meta$markercode))
+print('Genes found:')
+print(genes)
+
+# Replace with standard names
+f_meta <- f_meta %>%  mutate(markercode = str_replace_all(markercode, names))
+genes <-unique(f_meta$markercode)
 
 
 #######################
 # Filter and save fasta
 #######################
 
-# Save process IDs
-ids <- f_meta$processid
+for (gene in genes) {
+  
+  # Filter dataframe for gene
+  df <- f_meta %>% filter(markercode==gene)
 
-# Filter fasta
-fasta <- fasta[ids]
-
-# Add taxonomy to fasta
-# Update the identifiers in your list
-for (i in seq_along(fasta)) {
-  old_identifier <- names(fasta)[i]
-  new_identifier <- f_meta$fasta_id[f_meta$processid == old_identifier]
-  # If a corresponding new identifier is found, update the name in the list
-  if (!is.na(new_identifier) && length(new_identifier) == 1) {
-    names(fasta)[i] <- new_identifier
+    # Save process IDs
+  ids <- df$processid
+  
+  # Filter fasta
+  fasta <- fasta[ids]
+  
+  # Add taxonomy to fasta
+  # Update the identifiers in your list
+  for (i in seq_along(fasta)) {
+    old_identifier <- names(fasta)[i]
+    new_identifier <- df$fasta_id[df$processid == old_identifier]
+    # If a corresponding new identifier is found, update the name in the list
+    if (!is.na(new_identifier) && length(new_identifier) == 1) {
+      names(fasta)[i] <- new_identifier
+    }
   }
+  
+  # Write the named list to a FASTA file
+  #file = paste
+  #write.fasta(fasta, names(fasta), paste(gene, '.fasta', sep = '' ))
+  #print(paste('Sequences saved to', cat(gene, '.fasta', sep = '' )))
+
+  file <- paste(gene, '.fasta', sep = '')
+  write.fasta(fasta, names(fasta), file)
+  cat(length(ids), "sequences saved to", file, "\n")
+  
 }
-
-# Write the named list to a FASTA file
-write.fasta(fasta, names(fasta), opt$fasta)
-print(paste('Sequences saved to', opt$fasta))
-
-
