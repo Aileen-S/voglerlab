@@ -53,12 +53,9 @@ if ( !is.null(opt$taxon) ) {
   write.csv(meta, 'raw_metadata.csv', row.names = FALSE)
   print('Saved metadata to raw_metadata.csv')
 
-
   # Search existing files  
   } else {
   meta <- read.csv(opt$csv)
-  # Filter csv to remove records not present in fasta
-  meta <- subset(meta, processid %in% names(fasta))
   } 
 
 ####################################
