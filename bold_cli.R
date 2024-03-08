@@ -1,8 +1,12 @@
-# Packages
+# Install packages if necessary
+if (!require("bold")) {install.packages("bold")}
+if (!require("tidyverse")) {install.packages("tidyverse")}
+if (!require("getopt")) {install.packages("getopt")}
+# Load packages
 library('bold')
 library('tidyverse')
-library('seqinr')
 library('getopt')
+#library('seqinr')
 
 # Get command line arguments
 # column 1 = long flag
@@ -148,7 +152,7 @@ print(genes)
 # Replace with standard names
 f_meta <- f_meta %>%  mutate(markercode = str_replace_all(markercode, names))
 genes <-unique(f_meta$markercode)
-print(genes)
+#print(genes)
 
 #######################
 # Filter and save fasta
