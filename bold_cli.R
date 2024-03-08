@@ -21,7 +21,8 @@ spec <- matrix(c(
   'csv',        'c', 2, 'character', 'Path to existing BOLD metadata to be filtered',
   'genbank',    'g', 2, 'logical',   'Remove sequences also on GenBank',
   'barcode',    'b', 2, 'character', 'Save only barcodes, delete other genes',
-  'metadata',   'm', 1, 'character', 'Read genbank metadata file to get TXIDs'
+  'metadata',   'm', 1, 'character', 'Read genbank metadata file to get TXIDs',
+  'txid',       'x', 2, 'logical',   'Add NCBI taxon IDs to start of fasta ID where available'
 ), byrow = T, ncol = 5)
 
 opt <- getopt(spec)
@@ -84,9 +85,14 @@ f_meta <- f_meta %>% filter(markercode!="")
 f_meta <- f_meta %>% filter(bin_uri!="")
 f_meta <- f_meta %>% filter(nucleotides!="")
 
+# Get sequence lengths
+f_meta$sequence_length <- nchar(f_meta$nucleotides)
 
-# Keep one record per bin
-f_meta <- f_meta %>% distinct(bin_uri, markercode, .keep_all = TRUE)
+# Keep longest sequence for each bin, for each gene
+#f_meta <- f_meta %>% distinct(bin_uri, markercode, .keep_all = TRUE)
+f_meta <- f_meta %>%
+  arrange(bin_uri, markercode, desc(sequence_length)) %>%
+  distinct(bin_uri, markercode, .keep_all = TRUE)
 print(paste(nrow(f_meta), 'unique BINs. Saved one sequence for each BIN.'))
 
 # Get NCBI TXIDs
@@ -99,32 +105,36 @@ if ( !is.null(opt$metadata)) {
   # Merge NCBI TXIDs with BOLD data
   f_meta <- merge(f_meta, ncbi, by = 'species_name', all.x = TRUE)
 # 
-} else {
-  f_meta[ , 'TXID'] <- ''
-}
+} #else {
+  #f_meta[ , 'TXID'] <- ''
+#}
 
 # Add column for fasta IDs
-f_meta$fasta_id <- ifelse(is.na(f_meta$TXID), 
-                          paste(f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''), 
-                          paste(f_meta$TXID, '/_', f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''))
+if ( !is.null(opt$txid)) {
+  f_meta$fasta_id <- ifelse((is.na(f_meta$TXID) || f_meta$TXID == ''), 
+                            paste(f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''), 
+                            paste(f_meta$TXID, '/_', f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''))
+} else {
+  f_meta$fasta_id <-paste(f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = '')
+}
+f_meta$fasta_id <- gsub(" ", "_", f_meta$fasta_id)
 
 # Remove gaps from sequences
 f_meta$nucleotides <- gsub("-","",as.character(f_meta$nucleotides))
 
-# Get sequence lengths
-f_meta$Length <- nchar(f_meta$nucleotides)
-# 
-f_meta$fasta_id <- gsub(" ", "_", f_meta$fasta_id)
-
 #Edit dataframe to match genbank output
-empty <- c('Suborder', 'Infraorder', 
-           'Superfamily', 'Tribe', 'Description', 'Date Last Modified', 'Date Collected', 
-           'Country', 'Region', 'latlon')
-f_meta[ , empty] <- ''
-csv <- f_meta %>% select(fasta_id, processid, TXID, bin_uri, species_name, markercode, Length, Suborder, Superfamily,
-                            family_name, subfamily_name, genus_name, Description, 
-                            'Date Last Modified', 'Date Collected', Country, Region, latlon, lat, lon)
-
+#empty <- c('Suborder', 'Infraorder', 
+#           'Superfamily', 'Tribe', 'Description', 'Date Last Modified', 'Date Collected', 
+#           'Country', 'Region', 'latlon')
+#f_meta[ , empty] <- ''
+#csv <- f_meta %>% select(fasta_id, processid, TXID, bin_uri, species_name, markercode, sequence_length, Suborder, Superfamily,
+#                            family_name, subfamily_name, genus_name, Description, 
+#                            'Date Last Modified', 'Date Collected', Country, Region, latlon, lat, lon)
+csv <- f_meta %>% select(fasta_id, processid, bin_uri, species_name, markercode, sequence_length, genbank_accession, phylum_taxID,	phylum_name,	
+                         class_taxID,	class_name,	order_taxID,	order_name,	family_taxID,	family_name,	subfamily_taxID,	subfamily_name,	
+                         genus_taxID,	genus_name,	species_taxID,	species_name,	subspecies_taxID,	subspecies_name,	habitat,	
+                         lat,	lon,	coord_source,	coord_accuracy,	elev,	depth,	elev_accuracy,	depth_accuracy,	country,	province_state,	
+                         region,	sector,	exactsite	)
 
 # Write metadata to CSV
 write.csv(csv, 'metadata.csv', row.names = FALSE)
