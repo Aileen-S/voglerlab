@@ -53,7 +53,7 @@ names <- c('18S-3P' = '18S',
 
   # BOLD web search
 if ( !is.null(opt$taxon) ) {
-  meta <- bold_seqspec(taxon=opt$taxon)
+  meta <- bold_seqspec(taxon=opt$taxon, cleanData = TRUE, fill=TRUE)
   print(paste(nrow(meta), 'records found for', opt$taxon))
   write.csv(meta, 'raw_metadata.csv', row.names = FALSE)
   print('Saved metadata to raw_metadata.csv')
@@ -117,9 +117,9 @@ if ( !is.null(opt$metadata)) {
 if ( !is.null(opt$txid)) {
   f_meta$fasta_id <- ifelse((is.na(f_meta$TXID) || f_meta$TXID == ''), 
                             paste(f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''), 
-                            paste(f_meta$TXID, '/_', f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''))
+                            paste(f_meta$TXID, '/_', f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_/', f_meta$species_name, sep = ''))
 } else {
-  f_meta$fasta_id <-paste(f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = '')
+  f_meta$fasta_id <-paste(f_meta$processid, '/_', f_meta$family_name, '_', f_meta$subfamily_name, '_/', f_meta$species_name, sep = '')
 }
 f_meta$fasta_id <- gsub(" ", "_", f_meta$fasta_id)
 
