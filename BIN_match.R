@@ -22,7 +22,9 @@ for (name in names(seqs)) {
   seq <- paste(seqs[[name]], collapse = "")
   print(seq)
   bin_info <- bold_identify(seq)
+  print('completed bold_identify')
   match <- bin_info[[1]][1,]
+  print('extracted top result')
   match['db_id'] = name
   match$similarity <- as.numeric(match$similarity)
   if (is.na(match$similarity)) {
