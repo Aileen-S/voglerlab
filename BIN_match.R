@@ -24,7 +24,8 @@ for (name in names(seqs)) {
   bin_info <- bold_identify(seq)
   print('completed bold_identify')
   match <- bin_info[[1]][1,]
-  print('extracted top result')
+  match_id <- ifelse(is.null(match$ID) || is.na(match$ID), "N/A", match$ID)
+  cat(sprintf("Top result: %s\n", match_id))
   match['db_id'] = name
   match$similarity <- as.numeric(match$similarity)
   if (is.na(match$similarity)) {
@@ -40,3 +41,4 @@ for (name in names(seqs)) {
 }
 
 write.csv(matches, opt$output, row.names = FALSE)
+
