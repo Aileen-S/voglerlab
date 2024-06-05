@@ -20,7 +20,7 @@ colnames(matches) <- c('db_id', 'BIN_match', 'ID', 'sequencedescription', 'datab
 
 for (name in names(seqs)) {
   seq <- paste(seqs[[name]], collapse = "")
-  print(seq[[name]])
+  print(name)
   bin_info <- bold_identify(seq)
   print('completed bold_identify')
   match <- bin_info[[1]][1,]
