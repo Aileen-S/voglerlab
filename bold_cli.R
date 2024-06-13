@@ -22,7 +22,7 @@ library('getopt')
 
 spec <- matrix(c(
   'taxon',      't', 2, 'character', 'BOLD search term',
-  'csv',        'c', 2, 'character', 'Path to existing BOLD metadata to be filtered',
+  'tsv',        'c', 2, 'character', 'Path to existing BOLD metadata tsv to be filtered',
   'genbank',    'g', 2, 'logical',   'Remove sequences also on GenBank',
   'barcode',    'b', 2, 'character', 'Save only barcodes, delete other genes',
   'metadata',   'm', 1, 'character', 'Read genbank metadata file to get TXIDs',
@@ -55,23 +55,23 @@ names <- c('18S-3P' = '18S',
 if ( !is.null(opt$taxon) ) {
   meta <- bold_seqspec(taxon=opt$taxon, cleanData = TRUE, fill=TRUE)
   print(paste(nrow(meta), 'records found for', opt$taxon))
-  write.csv(meta, 'raw_metadata.csv', row.names = FALSE)
-  print('Saved metadata to raw_metadata.csv')
+  write.csv(meta, 'raw_metadata.tsv', row.names = FALSE)
+  print('Saved metadata to raw_metadata.tsv')
 
   # Search existing files  
   } else {
-  meta <- read.csv(opt$csv)
+  meta <- read.table(opt$tsv, sep = '\t')
   } 
 
 ####################################
 # Filter dataframe and write to file
-####################################
+###################################
 
 # Add sp for empty species values
 meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which(meta$species_name == "")], 'sp', sep = "_")
 
 # Filter out GenBank sequences
-
+# 
 if (!is.null(opt$genbank)) {
   # Filter for non-empty and non-missing genbank_accession
   f_meta <- meta %>% filter(!is.na(genbank_accession) & genbank_accession != "")
@@ -108,7 +108,7 @@ if ( !is.null(opt$metadata)) {
   ncbi <- ncbi %>% distinct(TXID, .keep_all = TRUE)
   ncbi <- ncbi %>% select(TXID, Species)
   names(ncbi)[names(ncbi)=="Species"] <- 'species_name'
-  
+
   # Merge NCBI TXIDs with BOLD data
   f_meta <- merge(f_meta, ncbi, by = 'species_name', all.x = TRUE)
 # 
