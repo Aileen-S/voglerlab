@@ -55,7 +55,7 @@ names <- c('18S-3P' = '18S',
 if ( !is.null(opt$taxon) ) {
   meta <- bold_seqspec(taxon=opt$taxon, cleanData = TRUE, fill=TRUE)
   print(paste(nrow(meta), 'records found for', opt$taxon))
-  write.csv(meta, 'raw_metadata.tsv', row.names = FALSE)
+  write.table(meta, 'raw_metadata.tsv', row.names = FALSE, sep = '\t')
   print('Saved metadata to raw_metadata.tsv')
 
   # Search existing files  
@@ -68,7 +68,7 @@ if ( !is.null(opt$taxon) ) {
 ###################################
 
 # Add sp for empty species values
-meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which(meta$species_name == "")], 'sp', sep = "_")
+#meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which(meta$species_name == "")], 'sp', sep = "_")
 
 # Filter out GenBank sequences
 # 
