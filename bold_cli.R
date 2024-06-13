@@ -71,12 +71,15 @@ if ( !is.null(opt$taxon) ) {
 meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which(meta$species_name == "")], 'sp', sep = "_")
 
 # Filter out GenBank sequences
-if ( !is.null(opt$genbank) ) {
-  f_meta <- meta %>% filter(genbank_accession=="")
-  print(paste(nrow(f_meta), 'records remaining after those also on GenBank removed'))
+
+if (!is.null(opt$genbank)) {
+  # Filter for non-empty and non-missing genbank_accession
+  f_meta <- meta %>% filter(!is.na(genbank_accession) & genbank_accession != "")
+  print(paste(nrow(f_meta), 'records remaining after those without GenBank accession removed'))
 } else {
-    f_meta <- meta
+  f_meta <- meta
 }
+
 
 # Keep only COI sequences
 if ( !is.null(opt$barcode)) {
