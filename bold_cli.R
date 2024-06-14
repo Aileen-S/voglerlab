@@ -70,7 +70,7 @@ if ( !is.null(opt$taxon) ) {
 ###################################
 
 # Add sp for empty species values
-#meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which(meta$species_name == "")], 'sp', sep = "_")
+meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which(meta$species_name == "")], 'sp', sep = "_")
 
 # Filter out GenBank sequences
 # 
@@ -118,14 +118,18 @@ if ( !is.null(opt$metadata)) {
   #f_meta[ , 'TXID'] <- ''
 #}
 
+f_meta <- mutate(f_meta, TXID = replace(TXID, NA, ""))
+
+
 # Add column for fasta IDs
 if ( !is.null(opt$txid)) {
-  f_meta$fasta_id <- ifelse((is.na(f_meta$TXID) || f_meta$TXID == ''), 
+  f_meta$fasta_id <- ifelse((is.na(f_meta$TXID) | f_meta$TXID == ''), 
                             paste(f_meta$processid, '_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''), 
                             paste(f_meta$TXID, '_', f_meta$processid, '_', f_meta$family_name, '_', f_meta$subfamily_name, '_/', f_meta$species_name, sep = ''))
 } else {
   f_meta$fasta_id <-paste(f_meta$processid, '_', f_meta$family_name, '_', f_meta$subfamily_name, '_/', f_meta$species_name, sep = '')
 }
+
 f_meta$fasta_id <- gsub(" ", "_", f_meta$fasta_id)
 
 # Remove gaps from sequences
