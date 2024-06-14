@@ -55,7 +55,7 @@ names <- c('18S-3P' = '18S',
 if ( !is.null(opt$taxon) ) {
   meta <- bold_seqspec(taxon=opt$taxon, cleanData = TRUE, fill=TRUE)
   print(paste(nrow(meta), 'records found for', opt$taxon))
-  write.table(meta, 'raw_metadata.tsv', row.names = FALSE, sep = '\t')
+  write.table(meta, 'raw_metadata.tsv', row.names = FALSE, sep = '\t', quote = FALSE)
   print('Saved metadata to raw_metadata.tsv')
 
   # Search existing files  
