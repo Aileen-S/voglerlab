@@ -60,7 +60,7 @@ if ( !is.null(opt$taxon) ) {
 
   # Search existing files  
   } else {
-  meta <- read.table(opt$tsv, sep = '\t')
+  meta <- read.table(opt$tsv, sep = '\t', header = TRUE)
   } 
 
 ####################################
