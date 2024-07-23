@@ -26,7 +26,9 @@ spec <- matrix(c(
   'genbank',    'g', 2, 'logical',   'Remove sequences also on GenBank',
   'barcode',    'b', 2, 'character', 'Save only barcodes, delete other genes',
   'metadata',   'm', 1, 'character', 'Read genbank metadata file to get TXIDs',
-  'txid',       'x', 2, 'logical',   'Add NCBI taxon IDs to start of fasta ID where available'
+  'txid',       'x', 2, 'logical',   'Add NCBI taxon IDs to start of fasta ID where available',
+  'raw',        'r', 2, 'logical',   'Save raw metadata, before any processing.'
+  
 ), byrow = T, ncol = 5)
 
 opt <- getopt(spec)
@@ -55,8 +57,10 @@ names <- c('18S-3P' = '18S',
 if ( !is.null(opt$taxon) ) {
   meta <- bold_seqspec(taxon=opt$taxon, cleanData = TRUE, fill=TRUE)
   print(paste(nrow(meta), 'records found for', opt$taxon))
-  write.table(meta, 'raw_metadata.tsv', row.names = FALSE, sep = '\t', quote = FALSE)
-  print('Saved metadata to raw_metadata.tsv')
+  if ( !is.null(opt$raw) ) {
+    write.table(meta, 'raw_metadata.tsv', row.names = FALSE, sep = '\t', quote = FALSE)
+    print('Saved metadata to raw_metadata.tsv')
+    }
 
   # Search existing files  
   } else {
@@ -107,9 +111,9 @@ print(paste(nrow(f_meta), 'unique BINs. Saved one sequence for each BIN.'))
 # Get NCBI TXIDs
 if ( !is.null(opt$metadata)) {
   ncbi <- read.csv(opt$metadata)
-  ncbi <- ncbi %>% distinct(TXID, .keep_all = TRUE)
-  ncbi <- ncbi %>% select(TXID, Species)
-  names(ncbi)[names(ncbi)=="Species"] <- 'species_name'
+  ncbi <- ncbi %>% distinct(ncbi_taxid, .keep_all = TRUE)
+  ncbi <- ncbi %>% select(ncbi_taxid, species)
+  names(ncbi)[names(ncbi)=="species"] <- 'species_name'
 
   # Merge NCBI TXIDs with BOLD data
   f_meta <- merge(f_meta, ncbi, by = 'species_name', all.x = TRUE)
@@ -118,36 +122,22 @@ if ( !is.null(opt$metadata)) {
   #f_meta[ , 'TXID'] <- ''
 #}
 
-f_meta <- mutate(f_meta, TXID = replace(TXID, NA, ""))
-
-
-# Add column for fasta IDs
-if ( !is.null(opt$txid)) {
-  f_meta$fasta_id <- ifelse((is.na(f_meta$TXID) | f_meta$TXID == ''), 
-                            paste(f_meta$processid, '_', f_meta$family_name, '_', f_meta$subfamily_name, '_', f_meta$species_name, sep = ''), 
-                            paste(f_meta$TXID, '_', f_meta$processid, '_', f_meta$family_name, '_', f_meta$subfamily_name, '_/', f_meta$species_name, sep = ''))
-} else {
-  f_meta$fasta_id <-paste(f_meta$processid, '_', f_meta$family_name, '_', f_meta$subfamily_name, '_/', f_meta$species_name, sep = '')
-}
-
-f_meta$fasta_id <- gsub(" ", "_", f_meta$fasta_id)
+#f_meta <- mutate(f_meta, TXID = replace(TXID, NA, ""))
+#f_meta <- mutate(f_meta, markercode = replace(markercode, "COXIII", "COX3"))
 
 # Remove gaps from sequences
 f_meta$nucleotides <- gsub("-","",as.character(f_meta$nucleotides))
 
-#Edit dataframe to match genbank output
-#empty <- c('Suborder', 'Infraorder', 
-#           'Superfamily', 'Tribe', 'Description', 'Date Last Modified', 'Date Collected', 
-#           'Country', 'Region', 'latlon')
-#f_meta[ , empty] <- ''
-#csv <- f_meta %>% select(fasta_id, processid, TXID, bin_uri, species_name, markercode, sequence_length, Suborder, Superfamily,
-#                            family_name, subfamily_name, genus_name, Description, 
-#                            'Date Last Modified', 'Date Collected', Country, Region, latlon, lat, lon)
-csv <- f_meta %>% select(fasta_id, processid, bin_uri, species_name, markercode, sequence_length, genbank_accession, phylum_taxID,	phylum_name,	
-                         class_taxID,	class_name,	order_taxID,	order_name,	family_taxID,	family_name,	subfamily_taxID,	subfamily_name,	
-                         genus_taxID,	genus_name,	species_taxID,	species_name,	subspecies_taxID,	subspecies_name,	habitat,	
-                         lat,	lon,	coord_source,	coord_accuracy,	elev,	depth,	elev_accuracy,	depth_accuracy,	country,	province_state,	
-                         region,	sector,	exactsite	)
+#Edit dataframe to match lab metadata
+empty <- c('lab_id',	'tribe', 'superfamily',	'infraorder',	'suborder',	'ncbi_taxid', 'genbank_accession')
+f_meta[ , empty] <- ''
+csv <- f_meta %>% select(ncbi_taxid, genbank_accession,	processid, bin_uri,	lab_id, suborder,	infraorder, superfamily, family_name, 
+                         subfamily_name, tribe, species_name,	country,	lat,	lon)
+
+new_names <- c("ncbi_taxid", "genbank_accession",	"bold_id",	"bold_bin",	"lab_id",	"suborder", "infraorder",	"superfamily",	
+               "family", "subfamily",	"tribe", "species",	"country",	"latitude",	"longitude")
+names(csv) <- new_names
+
 
 # Write metadata to CSV
 write.csv(csv, 'metadata.csv', row.names = FALSE)
@@ -176,7 +166,7 @@ for (gene in genes) {
   # Write to fasta
   for (i in 1:nrow(df)) {
     # Write header line
-    cat(">", df$fasta_id[i], "\n", file = file_out, sep = '')
+    cat(">", df$bold_id[i], "\n", file = file_out, sep = '')
     # Write sequence data with line breaks
     cat(df$nucleotides[i], "\n", file = file_out, sep = '')
   }
