@@ -161,12 +161,11 @@ for (gene in genes) {
   
   # Filter dataframe for gene
   df <- f_meta %>% filter(markercode==gene)
-  
   file_out <- file(paste(gene, ".fasta", sep = ''), "w")
   # Write to fasta
   for (i in 1:nrow(df)) {
     # Write header line
-    cat(">", df$bold_id[i], "\n", file = file_out, sep = '')
+    cat(">", df$processid[i], "\n", file = file_out, sep = '')
     # Write sequence data with line breaks
     cat(df$nucleotides[i], "\n", file = file_out, sep = '')
   }
