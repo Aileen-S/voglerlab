@@ -33,24 +33,22 @@ spec <- matrix(c(
 
 opt <- getopt(spec)
 
-names <- c('18S-3P' = '18S',
-            '28S-D2' = '28S',
-            'ArgK'   = 'AK',
-            'COI-3P' = 'COX1b',
-            'COI-5P' = 'COX1a',
-            'COI-5PNMT1' = 'COX1a',
-            'COII'   = 'COX2',
-            'COIII' = 'COX3',
-            'EF1-alpha' = 'EF1A',
-            'ND5-0' = 'ND5',
-            'Wnt1' = 'Wg')
+gene_names <- c('18S-3P' = '18S',
+                '28S-D2' = '28S',
+                'ArgK'   = 'AK',
+                'COI-3P' = 'COX1b',
+                'COI-5P' = 'COX1a',
+                'COI-5PNMT1' = 'COX1a',
+                'COII'   = 'COX2',
+                'COXIII' = 'COX3',
+                'EF1-alpha' = 'EF1A',
+                'ND5-0' = 'ND5',
+                'Wnt1' = 'Wg')
 
 
 ##############################
 # Get fastas and metadata
 ##############################
-
-#out <- bold_seqspec(taxon='Agabus', sepfasta = TRUE)
 
 
   # BOLD web search
@@ -149,9 +147,9 @@ print('Genes found:')
 print(genes)
 
 # Replace with standard names
-f_meta <- f_meta %>%  mutate(markercode = str_replace_all(markercode, names))
+f_meta <- f_meta %>%  mutate(markercode = str_replace_all(markercode, gene_names))
 genes <-unique(f_meta$markercode)
-#print(genes)
+print(genes)
 
 #######################
 # Filter and save fasta
