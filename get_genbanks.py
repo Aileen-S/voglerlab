@@ -214,13 +214,13 @@ if args.email:
     Entrez.email = args.email
 
 if args.ref == 'gbid':
-    accs = []
+    gbids = []
     file = open(args.file)
     lines = file.readlines()
     for line in lines:
         acc = line.strip()
-        accs.append(acc)
-    print(f'{len(accs)} IDs found in {args.file}')
+        gbids.append(acc)
+    print(f'{len(gbids)} IDs found in {args.file}')
 
 else:
     if args.ref  == 'txid':
@@ -248,9 +248,8 @@ other_type = set()
 misc_feature = set()
 x = 0  # Count taxids
 
-if gbids == None:
-    bids = ",".join(accs)                                           # Join into string for efetch
-results = search_genbank(gbids)
+gbid_str = ",".join(gbids)   
+results = search_genbank(gbid_str)
 for rec in results:
     if args.taxon:
         if args.taxon not in rec.annotations["taxonomy"]:
