@@ -116,9 +116,9 @@ if ( !is.null(opt$metadata)) {
   # Merge NCBI TXIDs with BOLD data
   f_meta <- merge(f_meta, ncbi, by = 'species_name', all.x = TRUE)
 # 
-} #else {
-  #f_meta[ , 'TXID'] <- ''
-#}
+} else {
+  f_meta[ , 'ncbi_taxid'] <- ''
+}
 
 #f_meta <- mutate(f_meta, TXID = replace(TXID, NA, ""))
 #f_meta <- mutate(f_meta, markercode = replace(markercode, "COXIII", "COX3"))
@@ -127,7 +127,7 @@ if ( !is.null(opt$metadata)) {
 f_meta$nucleotides <- gsub("-","",as.character(f_meta$nucleotides))
 
 #Edit dataframe to match lab metadata
-empty <- c('lab_id',	'tribe', 'superfamily',	'infraorder',	'suborder',	'ncbi_taxid', 'genbank_accession')
+empty <- c('lab_id',	'tribe', 'superfamily',	'infraorder',	'suborder',	'genbank_accession')
 f_meta[ , empty] <- ''
 csv <- f_meta %>% select(ncbi_taxid, genbank_accession,	processid, bin_uri,	lab_id, suborder,	infraorder, superfamily, family_name, 
                          subfamily_name, tribe, species_name,	country,	lat,	lon)
