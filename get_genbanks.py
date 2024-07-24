@@ -63,10 +63,10 @@ def get_gbids(term, chunk=10000, retries=10, delay=30):
 
 # Search GenBank with ID list
 def search_genbank(ids, chunk_size=500, retries=10, delay=30):
-
-    total = len(ids)
+    count = ids.split(',')
+    total = len(count)
     processed = 0
-    print('Downloading records')
+    print(f'Downloading {total} records')
     for i in range(0, len(ids), chunk_size):
         chunk = ids[i:i+chunk_size]
 
