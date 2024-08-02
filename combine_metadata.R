@@ -124,3 +124,8 @@ all <- all %>%
   
 write.csv(all, 'supermatrix/rename.csv', row.names = FALSE)
 paste('Combined metadata written to', opt$output)
+
+# Get outgroup file
+outgroup <- all %>% filter(rec_id %in% out)
+writeLines(paste(outgroup$taxonomy, collapse = ','), 'supermatrix/outgroup.txt')
+print('Outgroup taxa written to supermatrix/outgroup.txt')
