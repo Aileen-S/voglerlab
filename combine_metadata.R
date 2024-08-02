@@ -68,12 +68,12 @@ if (!is.null(opt$mmg)) {
   print('Getting MMG metadata')
   mmg <- read.csv(opt$mmg)
   # Filter rows with ID list
-  mmg <- mmg %>% filter(db_id %in% lab_ids)
+  mmg <- mmg %>% filter(mt_id %in% lab_ids)
   print(paste(nrow(mmg), 'of', length(lab_ids), 'requested ids founds in', opt$mmg))
   # Fix column names
   empty <- c('bold_id',	'bold_bin')
   mmg[ , empty] <- ''
-  names(mmg)[names(mmg) == 'db_id'] <- 'lab_id'
+  names(mmg)[names(mmg) == 'mt_id'] <- 'lab_id'
   # Remove non-species level ncbi taxon IDs
   mmg <- mmg %>%
     mutate(ncbi_taxid = if_else(ncbi_id_rank != 'species', NA_integer_, ncbi_taxid)) %>% 
