@@ -272,6 +272,7 @@ for rec in results:
         for k, v in genes.items():
             for name in names:
                 if name in v:
+                    print(name)
                     stdname = k
                     g += 1
         if stdname == '':
