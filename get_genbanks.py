@@ -1,3 +1,4 @@
+
 import argparse, argcomplete
 import csv
 from Bio import Entrez
@@ -62,10 +63,14 @@ def get_gbids(term, chunk=10000, retries=10, delay=30):
 
 
 # Search GenBank with ID list
-def search_genbank(ids, chunk_size=500, retries=10, delay=30):
+def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output="records.gb"):
     total = len(ids)
     processed = 0
     print(f'Downloading {total} records')
+
+    if save:
+        outfile = open(output, "w")
+
     for i in range(0, len(ids), chunk_size):
         chunk = ids[i:i+chunk_size]
 
@@ -80,6 +85,9 @@ def search_genbank(ids, chunk_size=500, retries=10, delay=30):
                     if processed == total:
                         print(f"Downloaded {processed} of {total} records")
                     yield record
+
+                    if save:
+                        SeqIO.write(record, outfile, "genbank")
                 break
             except Entrez.HTTPError:
                 print("HTTP error fetching records; retrying in 20 seconds")
@@ -171,6 +179,7 @@ parser.add_argument('-r', '--ref', choices=['txid', 'gbid'], help="If using --fi
 parser.add_argument("-e", "--email", type=str, help="Your email registered with NCBI")
 parser.add_argument('-m', '--mito', action='store_true', help='Save only mitochondrial protein-coding genes')
 parser.add_argument("-g", "--gene", type=str, help="Save specified gene only")
+parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results")
 
 argcomplete.autocomplete(parser)
 args = parser.parse_args()         # Process input args from command line
@@ -179,13 +188,15 @@ args = parser.parse_args()         # Process input args from command line
 genes = {"12S": ["12S", "12S RIBOSOMAL RNA", "12S RRNA", "RRNS", "SSU", "RRN12", "S-RRNA", "12S SMALL SUBUNIT RIBOSOMAL RNA", "SMALL SUBUNIT RIBOSOMAL RNA"],
          "16S": ["16S", "16S RIBOSOMAL RNA", "16S RRNA", "RRNL", "LSU", "RRN16", "L-RRNA", "16S LARGE SUBUNIT RIBOSOMAL RNA", "LARGE SUBUNIT RIBOSOMAL RNA"],
          "18S": ["18S", "18S RIBOSOMAL RNA", "18S RRNA", "18S SMALL SUBUNIT RIBOSOMAL RNA", "SMALL SUBUNIT RIBOSOMAL RNA"],
-         "28S": ["28S", "28S RIBOSOMAL RNA", "28S RRNA", "28S LARGE SUBUNIT RIBOSOMAL RNA", "LARGE SUBUNIT RIBOSOMAL RNA"],
+         "28S": ["28S", "28S RIBOSOMAL RNA", "28S RRNA", "28S LARGE SUBUNIT RIBOSOMAL RNA", "LARGE SUBUNIT RIBOSOMAL RNA", "28S LARGE SUBUNIT"],
 
          "ATP6": ['ATP SYNTHASE F0 SUBUNIT 6', 'APT6', 'ATP SYNTHASE A0 SUBUNIT 6', 'ATP SYNTHASE SUBUNIT 6', 'ATP SYNTHASE FO SUBUNIT 6', 'ATPASE6', 'ATPASE SUBUNIT 6', 'ATP6'],
          "ATP8": ['ATP SYNTHASE F0 SUBUNIT 8', 'APT8', 'ATP SYNTHASE A0 SUBUNIT 8', 'ATP SYNTHASE SUBUNIT 8', 'ATP SYNTHASE FO SUBUNIT 8', 'ATPASE8', 'ATPASE SUBUNIT 8', 'ATP8'],
-         "COX1": ['CYTOCHROME C OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE SUBUNIT I', 'CYTOCHROME C OXIDASE SUBUNIT I', 'COXI', 'CO1', 'COI', 'CYTOCHROME COXIDASE SUBUNIT I', 'CYTOCHROME OXIDASE SUBUNIT 1', 'CYTOCHROME OXYDASE SUBUNIT 1', 'COX1', 'CYTOCHROME OXIDASE I', 'CYTOCHROME OXIDASE C SUBUNIT I', 'COX 1'],
-         "COX2": ['CYTOCHROME C OXIDASE SUBUNIT 2', 'CYTOCHROME OXIDASE SUBUNIT II', 'CYTOCHROME C OXIDASE SUBUNIT II', 'COXII', 'CO2', 'COII', 'CYTOCHROME COXIDASE SUBUNIT II', 'CYTOCHROME OXIDASE SUBUNIT 2', 'CYTOCHROME OXYDASE SUBUNIT 2', 'COX2'],
-         "COX3": ['CYTOCHROME C OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE SUBUNIT III', 'CYTOCHROME C OXIDASE SUBUNIT III', 'COXII', 'CO3', 'COIII', 'CYTOCHROME COXIDASE SUBUNIT III', 'CYTOCHROME OXIDASE SUBUNIT 3', 'CYTOCHROME OXYDASE SUBUNIT 3', 'COX3'],
+
+         "COX1": ['CYTOCHROME C OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE SUBUNIT I',   'CYTOCHROME C OXIDASE SUBUNIT I',   'COXI',   'CO1', 'COI',   'CYTOCHROME COXIDASE SUBUNIT I',   'CYTOCHROME OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE I', 'CYTOCHROME OXYDASE SUBUNIT 1', 'COX 1', 'COX1'],
+         "COX2": ['CYTOCHROME C OXIDASE SUBUNIT 2', 'CYTOCHROME OXIDASE SUBUNIT II',  'CYTOCHROME C OXIDASE SUBUNIT II',  'COXII',  'CO2', 'COII',  'CYTOCHROME COXIDASE SUBUNIT II',  'CYTOCHROME OXIDASE SUBUNIT 2', 'CYTOCHROME OXIDASE II', 'CYTOCHROME C OXIDASE II', 'CYTOCHROME OXYDASE C SUBUNIT 2', 'CYTOCHROME OXIDASE C SUBUNIT 2', 'COX2', 'CYTOCHROME OXIDASE (CO) II'],
+         "COX3": ['CYTOCHROME C OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE SUBUNIT III', 'CYTOCHROME C OXIDASE SUBUNIT III', 'COXIII', 'CO3', 'COIII', 'CYTOCHROME COXIDASE SUBUNIT III', 'CYTOCHROME OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE III', 'CYTOCHROME OXIDASE C SUBUNIT 3',  'COX3'],
+         
          "CYTB": ['CYTOCHROME B', 'CYB', 'COB', 'COB / CYTB', 'CYTB', "COB/CYTB"],
          "ND1": ['NAD1', 'NSD1', 'NADH1', 'NADH DEHYDROGENASE SUBUNIT I', 'NADH DEHYDROGENASE SUBUNIT 1', 'NADH DESHYDROGENASE SUBUNIT 1', 'NAD1-0', 'ND1'],
          "ND2": ['NAD2', 'NSD2', 'NADH2', 'NADH DEHYDROGENASE SUBUNIT II', 'NADH DEHYDROGENASE SUBUNIT 2', 'NADH DESHYDROGENASE SUBUNIT 2', 'NAD2-0', 'ND2'],
@@ -209,8 +220,7 @@ cds = ['ATP6', 'ATP8', 'COX1', 'COX2', 'COX3', 'CYTB', 'ND1', 'ND2', 'ND3', 'ND4
 
 suborders = ['Adephaga', 'Polyphaga', 'Myxophaga', 'Archostemata']
 
-unrec_genes = []
-unrec_species = []
+
 if args.email:
     Entrez.email = args.email
 
@@ -247,9 +257,14 @@ seqs = {}
 nohits = []
 other_type = set()
 misc_feature = set()
+unrec_genes = {}
+unrec_species = []
 x = 0  # Count taxids
 
-results = search_genbank(gbids)
+if args.save:
+    results = search_genbank(gbids, save=True, output=args.save)
+else:
+    results = search_genbank(gbids)
 for rec in results:
     if args.taxon:
         if args.taxon not in rec.annotations["taxonomy"]:
@@ -272,12 +287,15 @@ for rec in results:
         for k, v in genes.items():
             for name in names:
                 if name in v:
-                    print(name)
                     stdname = k
                     g += 1
         if stdname == '':
-            unrec_genes.append(name)
-            continue
+            for name in names:
+                if name in unrec_genes:
+                    unrec_genes[name].append(rec.name)
+                else:
+                    unrec_genes[name] = [rec.name]
+                continue
 
         if args.mito:
             if stdname not in mito:
@@ -390,9 +408,13 @@ if args.file:
         print(f'\nNo requested genes found in the following records: {nohits}')
 
 print("\nUnrecognised Genes")
-counter = Counter(unrec_genes)
-print(counter)
+for gene, recs in unrec_genes.items():
+    print(f'{gene}: {len(recs)} record' if len(recs) == 1 else f'{gene}: {len(recs)} records')
+    recs = ', '.join(recs)
+    print(f'{recs}\n')
+
 print('Misc Features')
 print(misc_feature)
 print("Other Feature Types")
 print(other_type)
+
