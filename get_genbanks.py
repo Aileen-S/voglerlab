@@ -295,7 +295,7 @@ for rec in results:
                     unrec_genes[name].append(rec.name)
                 else:
                     unrec_genes[name] = [rec.name]
-                continue
+            continue
 
         if args.mito:
             if stdname not in mito:
@@ -309,7 +309,11 @@ for rec in results:
                 frame = feature.qualifiers["codon_start"][0]
             else:
                 print(f"Reading frame missing from record {rec.name}, {stdname}.")
-        seq = feature.extract(rec.seq)
+        try:
+            seq = feature.extract(rec.seq)
+        except UndefinedSequenceError:
+            print(f"Error extracting sequence for record '{rec.name}' feature '{names}')")
+            continue
         gene_output = {"gbid": rec.name,
                        "gene": stdname,
                        "length": len(seq),
