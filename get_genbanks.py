@@ -242,6 +242,17 @@ else:
             taxid = line.strip()
             taxids.append(taxid)
         print(f'{len(taxids)} IDs found in {args.file}')
+        # Get genbank IDs
+        y = 0
+        gbids = []
+        for tax in taxids:
+            if y % 100 == 0:
+                print(f"Downloading GenBank records for taxon IDs {y+1} to {y+100}" if (y+100) < len(taxids) else
+                    f"Downloading GenBank records for taxon IDs {y+1} to {len(taxids)}")
+            y += 1
+            handle = Entrez.esearch(db="nucleotide", term=f"txid{tax}")       # Search for all records for each taxon id
+            record = Entrez.read(handle)
+            gbids   = gbids + record["IdList"]   # Get GBIDs
 
         # Generate search term to get all sequences in the search taxonomy
     if args.taxon:
