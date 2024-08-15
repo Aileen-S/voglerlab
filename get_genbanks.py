@@ -66,7 +66,7 @@ def get_gbids(term, chunk=10000, retries=10, delay=30):
 def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output="records.gb"):
     total = len(ids)
     processed = 0
-    print(f'Downloading {total} records')
+    print(f'Downloading records for {total} GenBank IDs')
 
     if save:
         outfile = open(output, "w")
@@ -246,10 +246,10 @@ else:
         y = 0
         gbids = []
         for tax in taxids:
-            if y % 100 == 0:
-                print(f"Downloading GenBank records for taxon IDs {y+1} to {y+100}" if (y+100) < len(taxids) else
-                    f"Downloading GenBank records for taxon IDs {y+1} to {len(taxids)}")
             y += 1
+            if y % 100 == 0:
+                print(f"Downloaded GenBank IDs for taxon IDs {y+1} to {y+100}" if (y+100) < len(taxids) else
+                    f"Downloaded GenBank IDs for taxon IDs {y+1} to {len(taxids)}")
             handle = Entrez.esearch(db="nucleotide", term=f"txid{tax}")       # Search for all records for each taxon id
             record = Entrez.read(handle)
             gbids   = gbids + record["IdList"]   # Get GBIDs
@@ -323,7 +323,7 @@ for rec in results:
         try:
             seq = feature.extract(rec.seq)
         except UndefinedSequenceError:
-            print(f"Error extracting sequence for record '{rec.name}' feature '{names}')")
+            print(f"Error extracting sequence for record '{rec.name}', feature '{names}')")
             continue
         gene_output = {"gbid": rec.name,
                        "gene": stdname,
@@ -384,6 +384,10 @@ for gene, records in longest.items():
     x = 0
     y = 0
     for rec in records:
+        try:
+            seq = rec['seq']
+        except UndefinedSequenceError:
+            print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
         if gene in rna:
             file.write(f">{rec['gbid']}\n{rec['seq']}\n")
             x += 1
