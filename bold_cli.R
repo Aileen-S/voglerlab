@@ -26,7 +26,6 @@ spec <- matrix(c(
   'genbank',    'g', 2, 'logical',   'Remove sequences also on GenBank',
   'barcode',    'b', 2, 'character', 'Save only barcodes, delete other genes',
   'metadata',   'm', 1, 'character', 'Read genbank metadata file to get TXIDs',
-  'txid',       'x', 2, 'logical',   'Add NCBI taxon IDs to start of fasta ID where available',
   'raw',        'r', 2, 'logical',   'Save raw metadata, before any processing.'
   
 ), byrow = T, ncol = 5)
@@ -79,7 +78,7 @@ meta$species_name[which(meta$species_name == "")] <- paste(meta$genus_name[which
 if (!is.null(opt$genbank)) {
   # Filter for non-empty and non-missing genbank_accession
   f_meta <- meta %>% filter(!is.na(genbank_accession) & genbank_accession != "")
-  print(paste(nrow(f_meta), 'records remaining after those without GenBank accession removed'))
+  print(paste(nrow(f_meta), 'records remaining after removing those with GenBank accession'))
 } else {
   f_meta <- meta
 }
