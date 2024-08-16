@@ -419,16 +419,16 @@ if args.file:
     if len(nohits) > 0:
         print(f'\nNo requested genes found in the following records: {nohits}')
 
-
-print("\nUnrecognised genes printed below, and to 'other_genes.csv")
-with open("other_genes", "w") as file:
-    writer = csv.writer(file)
-    writer.writerow(['gene', 'count', 'records'])
-    for gene, recs in unrec_genes.items():
-        print(f'{gene}: {len(recs)} record' if len(recs) == 1 else f'{gene}: {len(recs)} records')
-        recs = ', '.join(recs)
-        print(f'{recs}\n')
-        writer.writerow([gene, len(recs), recs])
+if unrec_genes != {}:
+    print("\nUnrecognised genes printed below, and to 'other_genes.csv")
+    with open("other_genes", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(['gene', 'count', 'records'])
+        for gene, recs in unrec_genes.items():
+            print(f'{gene}: {len(recs)} record' if len(recs) == 1 else f'{gene}: {len(recs)} records')
+            recs = ', '.join(recs)
+            print(f'{recs}\n')
+            writer.writerow([gene, len(recs), recs])
 
 print('Misc Features')
 print(misc_feature)
