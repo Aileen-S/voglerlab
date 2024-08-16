@@ -57,16 +57,15 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
                     searchhand = Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk)
                     searchrec = Entrez.read(searchhand)
                     gbids.extend(searchrec['IdList'])
-                print(f'Found {len(gbids)} GenBank IDs')
-                return gbids
             # If HTTP error, pause and try again
             except Entrez.HTTPError:
                 print(f"HTTP Error: retrying in {delay} seconds")
                 time.sleep(delay)
-
-        print(f"Failed to retrieve records after {retries} attempts.")
+    if gbids == []:
+        print(f"Failed to retrieve records")
         return None
-
+    print(f'Found {len(gbids)} GenBank IDs')
+    return gbids
 
 # Search GenBank with ID list
 def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output="records.gb"):
@@ -416,16 +415,20 @@ with open("metadata.csv", "w") as file:
     print("Metadata saved to metadata.csv")
 
 
-
 if args.file:
     if len(nohits) > 0:
         print(f'\nNo requested genes found in the following records: {nohits}')
 
-print("\nUnrecognised Genes")
-for gene, recs in unrec_genes.items():
-    print(f'{gene}: {len(recs)} record' if len(recs) == 1 else f'{gene}: {len(recs)} records')
-    recs = ', '.join(recs)
-    print(f'{recs}\n')
+
+print("\nUnrecognised genes printed below, and to 'other_genes.csv")
+with open("other_genes", "w") as file:
+    writer = csv.writer(file)
+    writer.writerow(['gene', 'count', 'records'])
+    for gene, recs in unrec_genes.items():
+        print(f'{gene}: {len(recs)} record' if len(recs) == 1 else f'{gene}: {len(recs)} records')
+        recs = ', '.join(recs)
+        print(f'{recs}\n')
+        writer.writerow([gene, len(recs), recs])
 
 print('Misc Features')
 print(misc_feature)
