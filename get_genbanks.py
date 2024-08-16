@@ -29,37 +29,43 @@ def set_feat_name(feat, name):
     return feat
 
 
-
-def get_gbids(term, chunk=10000, retries=10, delay=30):
-    # Search GenBank and retrive list of GBIDs.
-    # Args:
-    #     term (str): Search term for nucleotides.
-    #     chunk (optional): Number of results per request (default: 10000).
-    #     retries (optional): Number of retries on HTTP errors (default: 3).
-    #     delay (optional): Delay in seconds between retries (default: 30).
-    # Yields:
-    #     list: List of GenBank IDs from the search.
+# Search GenBank and retrive list of GBIDs.
+# Args:
+#     term (str): Search term for nucleotides.
+#     chunk (optional): Number of results per request (default: 10000).
+#     retries (optional): Number of retries on HTTP errors (default: 3).
+#     delay (optional): Delay in seconds between retries (default: 30).
+# Yields:
+#     list: List of GenBank IDs from the search.
+def get_gbids(query, chunk=10000, retries=10, delay=30):
     gbids = []
-    print(f"Searching Genbank for {term}")
-    for attempt in range(retries):
-        try:
-            # Get record count for search term
-            searchhand = Entrez.esearch(db="nucleotide", term=term, retmax=0)
-            searchrec = Entrez.read(searchhand)
-            count = int(searchrec["Count"])
-            # Get GBIDs
-            for start in range(0, count, chunk):
-                searchhand = Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk)
+    # Define search term 
+    terms = [f"txid{txid}" for txid in query] if isinstance(query, list) else [query]
+    if isinstance(query, list):
+        print('Retriving GenBank record IDs for input taxon ID list')
+    else:
+        print(f'Retriving GenBank record IDs for {query}')
+    for term in terms:
+        for attempt in range(retries):
+            try:
+                # Get record count for search term
+                searchhand = Entrez.esearch(db="nucleotide", term=term, retmax=0)
                 searchrec = Entrez.read(searchhand)
-                gbids.extend(searchrec['IdList'])
-            return gbids
-        # If HTTP error, pause and try again
-        except Entrez.HTTPError:
-            print(f"HTTP Error: retrying in {delay} seconds")
-            time.sleep(delay)
+                count = int(searchrec["Count"])
+                # Get GBIDs
+                for start in range(0, count, chunk):
+                    searchhand = Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk)
+                    searchrec = Entrez.read(searchhand)
+                    gbids.extend(searchrec['IdList'])
+                print(f'Found {len(gbids)} GenBank IDs')
+                return gbids
+            # If HTTP error, pause and try again
+            except Entrez.HTTPError:
+                print(f"HTTP Error: retrying in {delay} seconds")
+                time.sleep(delay)
 
-    print(f"Failed to retrieve records after {retries} attempts.")
-    return None
+        print(f"Failed to retrieve records after {retries} attempts.")
+        return None
 
 
 # Search GenBank with ID list
@@ -242,25 +248,14 @@ else:
             taxid = line.strip()
             taxids.append(taxid)
         print(f'{len(taxids)} IDs found in {args.file}')
-        # Get genbank IDs
-        y = 0
-        gbids = []
-        for tax in taxids:
-            y += 1
-            if y % 100 == 0:
-                print(f"Downloaded GenBank IDs for taxon IDs {y+1} to {y+100}" if (y+100) < len(taxids) else
-                    f"Downloaded GenBank IDs for taxon IDs {y+1} to {len(taxids)}")
-            handle = Entrez.esearch(db="nucleotide", term=f"txid{tax}")       # Search for all records for each taxon id
-            record = Entrez.read(handle)
-            gbids   = gbids + record["IdList"]   # Get GBIDs
-
-        # Generate search term to get all sequences in the search taxonomy
+        gbids = get_gbids(taxids)
+        #print(f"Found {len(gbids)} records for input ID list")
     if args.taxon:
         basesearch = f"(\"{args.taxon}\"[Organism] OR \"{args.taxon}\"[All Fields])"
 
         # Retrieve GBIDs for search term
-        gbids = get_gbids(term=basesearch)
-        print(f"Found {len(gbids)} records for {args.taxon}")
+        gbids = get_gbids(basesearch)
+        #print(f"Found {len(gbids)} records for {args.taxon}")
 
 # Search through GBIDs
 meta = {}
