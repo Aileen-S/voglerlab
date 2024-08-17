@@ -81,19 +81,19 @@ def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output
 
         for attempt in range(retries):
             try:
-                handle = Entrez.efetch(db="nucleotide", id=','.join(chunk), rettype="gb", retmode="text")
-                results = SeqIO.parse(handle, "gb")
-                for record in results:
-                    processed += 1
-                    if processed % 500 == 0:
-                        print(f"Downloaded {processed} of {total} records")
-                    if processed == total:
-                        print(f"Downloaded {processed} of {total} records")
-                    yield record
+                with Entrez.efetch(db="nucleotide", id=','.join(chunk), rettype="gb", retmode="text") as handle:
+                    results = SeqIO.parse(handle, "gb")
+                    for record in results:
+                        processed += 1
+                        if processed % 500 == 0:
+                            print(f"Downloaded {processed} of {total} records")
+                        if processed == total:
+                            print(f"Downloaded {processed} of {total} records")
+                        yield record
 
-                    if save:
-                        SeqIO.write(record, outfile, "genbank")
-                break
+                        if save:
+                            SeqIO.write(record, outfile, "genbank")
+                    break # Stop addition retries if successful
             except Entrez.HTTPError:
                 print("HTTP error fetching records; retrying in 20 seconds")
                 time.sleep(delay)
@@ -140,15 +140,19 @@ def genbank_metadata(rec):
         region = ""
     if "lat_lon" in rec.features[0].qualifiers:
         latlon = rec.features[0].qualifiers["lat_lon"][0]
-        ll_list = latlon.split(" ")
-        if ll_list[1] == "N":
-            lat = ll_list[0]
-        else:
-            lat = "-" + ll_list[0]
-        if ll_list[3] == "E":
-            long = ll_list[2]
-        else:
-            long = "-" + ll_list[2]
+        try:
+            ll_list = latlon.split(" ")
+            if ll_list[1] == "N":
+                lat = ll_list[0]
+            else:
+                lat = "-" + ll_list[0]
+            if ll_list[3] == "E":
+                long = ll_list[2]
+            else:
+                long = "-" + ll_list[2]
+        except IndexError:
+            lat = ""
+            long = ""
     else:
         latlon = ""
         lat = ""
@@ -314,11 +318,11 @@ for rec in results:
                 frame = feature.qualifiers["codon_start"][0]
             else:
                 print(f"Reading frame missing from record {rec.name}, {stdname}.")
-        try:
-            seq = feature.extract(rec.seq)
-        except UndefinedSequenceError:
-            print(f"Error extracting sequence for record '{rec.name}', feature '{names}')")
-            continue
+        # try:
+        seq = feature.extract(rec.seq)
+        # except UndefinedSequenceError:
+        #     print(f"Error extracting sequence for record '{rec.name}', feature '{names}')")
+        #     continue
         gene_output = {"gbid": rec.name,
                        "gene": stdname,
                        "length": len(seq),
@@ -378,10 +382,10 @@ for gene, records in longest.items():
     x = 0
     y = 0
     for rec in records:
-        try:
-            seq = rec['seq']
-        except UndefinedSequenceError:
-            print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
+        # try:
+        #     seq = rec['seq']
+        # except UndefinedSequenceError:
+        #     print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
         if gene in rna:
             file.write(f">{rec['gbid']}\n{rec['seq']}\n")
             x += 1
@@ -426,8 +430,7 @@ if unrec_genes != {}:
         writer.writerow(['gene', 'count', 'records'])
         for gene, recs in unrec_genes.items():
             print(f'{gene}: {len(recs)} record' if len(recs) == 1 else f'{gene}: {len(recs)} records')
-            recs = ', '.join(recs)
-            print(f'{recs}\n')
+            #recs = ', '.join(recs)
             writer.writerow([gene, len(recs), recs])
 
 print('Misc Features')
