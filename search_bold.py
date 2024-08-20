@@ -31,7 +31,10 @@ def main():
     with open(output, "w") as file:
         file.write(data)
 
-    print(f"Metadata saved to {args.taxon}_metadata.csv")
+    if args.output:
+        print(f"Metadata saved to {args.output}")
+    else:
+        print(f"Metadata saved to {args.taxon}_metadata.tsv")
 
 if __name__ == "__main__":
     main()
