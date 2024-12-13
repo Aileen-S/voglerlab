@@ -92,7 +92,7 @@ if ( !is.null(opt$barcode)) {
 
 # Remove records without names genes or BINS
 f_meta <- f_meta %>% filter(markercode!="")
-f_meta <- f_meta %>% filter(bin_uri!="")
+#f_meta <- f_meta %>% filter(bin_uri!="")
 f_meta <- f_meta %>% filter(nucleotides!="")
 
 # Get sequence lengths
@@ -100,10 +100,24 @@ f_meta$sequence_length <- nchar(f_meta$nucleotides)
 
 # Keep longest sequence for each bin, for each gene
 #f_meta <- f_meta %>% distinct(bin_uri, markercode, .keep_all = TRUE)
-f_meta <- f_meta %>%
-  arrange(bin_uri, markercode, desc(sequence_length)) %>%
-  distinct(bin_uri, markercode, .keep_all = TRUE)
-print(paste(nrow(f_meta), 'unique BINs. Saved one sequence for each BIN.'))
+# f_meta <- f_meta %>%
+#   arrange(bin_uri, markercode, desc(sequence_length)) %>%
+#   distinct(bin_uri, markercode, .keep_all = TRUE)
+# print(paste(nrow(f_meta), 'unique BINs. Saved one sequence for each BIN.'))
+
+# Filter rows where bin_uri is NA or empty
+na_or_empty <- f_meta %>% filter(is.na(bin_uri) | bin_uri == "") 
+# Filter rows where bin_uri is not NA or empty and keep one row per unique bin_uri 
+unique_bin_uri <- f_meta %>% 
+  filter(!(is.na(bin_uri) | bin_uri == "")) %>% 
+  arrange(bin_uri, markercode, desc(sequence_length)) %>% 
+  distinct(bin_uri, .keep_all = TRUE) 
+# Combine the rows 
+f_meta <- bind_rows(na_or_empty, unique_bin_uri)
+
+cat(paste(nrow(unique_bin_uri), 'unique BINs\nSaved one sequence for each BIN\n'))
+cat(paste(nrow(na_or_empty), 'records without a BIN\n'))
+cat(paste('Saved', nrow(f_meta), 'records total\n'))
 
 # Get NCBI TXIDs
 if ( !is.null(opt$metadata)) {
