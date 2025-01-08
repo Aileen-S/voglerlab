@@ -21,7 +21,7 @@ tips <- strsplit(read_file(opt$tips), '\n')
 
 # Save tips as vector
 tips <- unlist(tips)
-print(tips)
+#print(tips)
 #print(length(tips), 'taxa in', opt$tips)
 
 # Open tree
@@ -34,6 +34,21 @@ if ( !is.null(opt$keep) ) {
 } else {
   new <- drop.tip(tree, tips)
 }
+
+# # Open file with tips to be removed
+# tips <- strsplit(read_file(opt$tips), '\n')[[1]]
+
+# # Read all trees from the input file
+# trees <- read.tree(opt$input)
+
+# # Process each tree
+# processed_trees <- lapply(trees, function(tree) {
+#   if (!is.null(opt$keep)) {
+#     keep.tip(tree, tips)
+#   } else {
+#     drop.tip(tree, tips)
+#   }
+# })
 
 # Write new tree
 write.tree(new, opt$output)
