@@ -113,6 +113,7 @@ with open (output,'w') as outfile:
     for rec in write:
         outfile.write(f'{rec[0]}\t{rec[1]}\t{rec[2]}\n')
 
+print(f'Output written to {output}')
 
 # Then:
 
@@ -131,4 +132,4 @@ with open (output,'w') as outfile:
 #     # Run blastdbcmd and append the output to the FASTA file
 #     blastdbcmd -db nt -entry "$accession" -range "$start-$end" -target_only -outfmt %f >> "$output"
 #   done < "$input"
-# done
+# done 
