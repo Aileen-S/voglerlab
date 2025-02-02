@@ -111,7 +111,6 @@ if args.longest:
             write.append([max_acc, (blast_hits[txid][max_acc]['start']), blast_hits[txid][max_acc]['end']])
 else:
     for txid, gbid in blast_hits.items():
-        print(txid)
         for gb, rec in gbid.items():
             gb = gb.replace('_2', '')
             rec_len = int(rec['end']) - int(rec['start'])
