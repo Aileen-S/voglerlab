@@ -43,7 +43,7 @@ with open(input, "r") as file:
         start = int(record[2])
         end = int(record[3])
         
-        if args.longest
+        if args.longest:
             # Check for multiple TXIDs
             if ';' in txid:
                 results = search_genbank(gbid)
@@ -89,6 +89,7 @@ with open(input, "r") as file:
             blast_hits[txid] = {gbid: {'start': int(start), 'end': int(end)}}
 
 write = []
+
 if args.longest:
     for txid, gbid in blast_hits.items():
         max_len = 200
