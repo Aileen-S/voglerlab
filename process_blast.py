@@ -43,21 +43,22 @@ with open(input, "r") as file:
         start = int(record[2])
         end = int(record[3])
         
-        # Check for multiple TXIDs
-        if ';' in txid:
-            results = search_genbank(gbid)
-            try:
-                for r in results:
-                    if "db_xref" in r.features[0].qualifiers:
-                        db_xref = r.features[0].qualifiers["db_xref"]
-                        for ref in db_xref:
-                            if "taxon" in ref:  # Get NCBI taxon, rather than BOLD cross ref
-                                txid = "".join(filter(str.isdigit, ref))  # Extract numbers from NCBI taxon value
-                    else:
-                        print(f'Error getting TXID for {gbid}')
-            except TypeError:
-                print(f'Error getting TXID for {gbid}')
-                continue
+        if args.longest
+            # Check for multiple TXIDs
+            if ';' in txid:
+                results = search_genbank(gbid)
+                try:
+                    for r in results:
+                        if "db_xref" in r.features[0].qualifiers:
+                            db_xref = r.features[0].qualifiers["db_xref"]
+                            for ref in db_xref:
+                                if "taxon" in ref:  # Get NCBI taxon, rather than BOLD cross ref
+                                    txid = "".join(filter(str.isdigit, ref))  # Extract numbers from NCBI taxon value
+                        else:
+                            print(f'Error getting TXID for {gbid}')
+                except TypeError:
+                    print(f'Error getting TXID for {gbid}')
+                    continue
 
         # Swap the values if the alignment is on the reverse strand
         if start > end:
