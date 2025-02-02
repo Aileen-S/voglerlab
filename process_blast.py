@@ -69,13 +69,18 @@ with open(input, "r") as file:
             if gbid in blast_hits[txid]:
                 # Check for too long matches (errors from genomes)
                 if max([end, blast_hits[txid][gbid]['end']]) - min([start, blast_hits[txid][gbid]['start']]) < 4000:
+                    # Check if start is lower than current start
                     if start < int(blast_hits[txid][gbid]['start']):
                         blast_hits[txid][gbid]['start'] = int(start)
+                    # Check if end is higher than current end
                     if end > int(blast_hits[txid][gbid]['end']):
                         blast_hits[txid][gbid]['end'] = int(end)
                 else:
+                    # If max coordinated of current and previous match are > 4000bp, save as separate sequence
+                    # Merge with current _2 sequence if possible
                     if f'{gbid}_2' in blast_hits[txid]:
                         if max([end, blast_hits[txid][f'{gbid}_2']['end']]) - min([start, blast_hits[txid][gbid]['start']]) < 4000:
+                            # Find first start and last end match for each gbid
                             if start < int(blast_hits[txid][f'{gbid}_2']['start']):
                                 blast_hits[txid][f'{gbid}_2']['start'] = int(start)
                             if end > int(blast_hits[txid][f'{gbid}_2']['end']):
@@ -106,10 +111,12 @@ if args.longest:
             write.append([max_acc, (blast_hits[txid][max_acc]['start']), blast_hits[txid][max_acc]['end']])
 else:
     for txid, gbid in blast_hits.items():
+        print(txid)
         for gb, rec in gbid.items():
-                rec_len = int(rec['end']) - int(rec['start'])
-                if rec_len > 200:
-                    write.append([gb, (blast_hits[txid][gb]['start']), blast_hits[txid][gb]['end']])
+            gb = gb.replace('_2', '')
+            rec_len = int(rec['end']) - int(rec['start'])
+            if rec_len > 200:
+                write.append([gb, (blast_hits[txid][gb]['start']), blast_hits[txid][gb]['end']])
 
 with open (output,'w') as outfile:
     for rec in write:
