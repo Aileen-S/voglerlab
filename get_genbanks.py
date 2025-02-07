@@ -38,7 +38,7 @@ def set_feat_name(feat, name):
 # Yields:
 #     list: List of GenBank IDs from the search.
 def get_gbids(query, chunk=10000, retries=10, delay=30):
-    gbids = []
+    gbids = set()
     # Define search term 
     terms = [f"txid{txid}" for txid in query] if isinstance(query, list) else [query]
     if isinstance(query, list):
@@ -56,7 +56,7 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
                 for start in range(0, count, chunk):
                     searchhand = Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk)
                     searchrec = Entrez.read(searchhand)
-                    gbids.extend(searchrec['IdList'])
+                    gbids.update(searchrec['IdList'])
             # If HTTP error, pause and try again
             except Entrez.HTTPError:
                 print(f"HTTP Error: retrying in {delay} seconds")
@@ -65,6 +65,7 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
         print(f"Failed to retrieve records")
         return None
     print(f'Found {len(gbids)} GenBank IDs')
+    gbids = list(gbids)
     return gbids
 
 # Search GenBank with ID list
@@ -189,10 +190,10 @@ parser.add_argument("-e", "--email", type=str, help="Your email registered with 
 parser.add_argument('-m', '--mito', action='store_true', help='Save only mitochondrial protein-coding genes')
 parser.add_argument("-g", "--gene", type=str, help="Save specified gene only")
 parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results")
+parser.add_argument("-l", "--longest", action='store_true', help="Save only longest sequence for each NCBI taxid")
 
 argcomplete.autocomplete(parser)
 args = parser.parse_args()         # Process input args from command line
-#args = argparse.Namespace(taxon='Amphizoidae', mpc=True, email='aileen.scott@nhm.ac.uk', nuclear=False) # This is how I step through the script interactively
 
 genes = {"12S": ["12S", "12S RIBOSOMAL RNA", "12S RRNA", "RRNS", "SSU", "RRN12", "S-RRNA", "12S SMALL SUBUNIT RIBOSOMAL RNA", "SMALL SUBUNIT RIBOSOMAL RNA"],
          "16S": ["16S", "16S RIBOSOMAL RNA", "16S RRNA", "RRNL", "LSU", "RRN16", "L-RRNA", "16S LARGE SUBUNIT RIBOSOMAL RNA", "LARGE SUBUNIT RIBOSOMAL RNA"],
@@ -202,9 +203,9 @@ genes = {"12S": ["12S", "12S RIBOSOMAL RNA", "12S RRNA", "RRNS", "SSU", "RRN12",
          "ATP6": ['ATP SYNTHASE F0 SUBUNIT 6', 'APT6', 'ATP SYNTHASE A0 SUBUNIT 6', 'ATP SYNTHASE SUBUNIT 6', 'ATP SYNTHASE FO SUBUNIT 6', 'ATPASE6', 'ATPASE SUBUNIT 6', 'ATP6'],
          "ATP8": ['ATP SYNTHASE F0 SUBUNIT 8', 'APT8', 'ATP SYNTHASE A0 SUBUNIT 8', 'ATP SYNTHASE SUBUNIT 8', 'ATP SYNTHASE FO SUBUNIT 8', 'ATPASE8', 'ATPASE SUBUNIT 8', 'ATP8'],
 
-         "COX1": ['CYTOCHROME C OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE SUBUNIT I',   'CYTOCHROME C OXIDASE SUBUNIT I',   'COXI',   'CO1', 'COI',   'CYTOCHROME COXIDASE SUBUNIT I',   'CYTOCHROME OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE I', 'CYTOCHROME OXYDASE SUBUNIT 1', 'COX 1', 'COX1'],
+         "COX1": ['CYTOCHROME C OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE SUBUNIT I',   'CYTOCHROME C OXIDASE SUBUNIT I',   'COXI',   'CO1', 'COI',   'CYTOCHROME COXIDASE SUBUNIT I',   'CYTOCHROME OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE I', 'CYTOCHROME OXYDASE SUBUNIT 1', 'CYTOCHROME OXIDASE C SUBUNIT I', 'COX 1', 'COX1'],
          "COX2": ['CYTOCHROME C OXIDASE SUBUNIT 2', 'CYTOCHROME OXIDASE SUBUNIT II',  'CYTOCHROME C OXIDASE SUBUNIT II',  'COXII',  'CO2', 'COII',  'CYTOCHROME COXIDASE SUBUNIT II',  'CYTOCHROME OXIDASE SUBUNIT 2', 'CYTOCHROME OXIDASE II', 'CYTOCHROME C OXIDASE II', 'CYTOCHROME OXYDASE C SUBUNIT 2', 'CYTOCHROME OXIDASE C SUBUNIT 2', 'COX2', 'CYTOCHROME OXIDASE (CO) II'],
-         "COX3": ['CYTOCHROME C OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE SUBUNIT III', 'CYTOCHROME C OXIDASE SUBUNIT III', 'COXIII', 'CO3', 'COIII', 'CYTOCHROME COXIDASE SUBUNIT III', 'CYTOCHROME OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE III', 'CYTOCHROME OXIDASE C SUBUNIT 3',  'COX3'],
+         "COX3": ['CYTOCHROME C OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE SUBUNIT III', 'CYTOCHROME C OXIDASE SUBUNIT III', 'COXIII', 'CO3', 'COIII', 'CYTOCHROME COXIDASE SUBUNIT III', 'CYTOCHROME OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE III', 'CYTOCHROME OXIDASE C SUBUNIT 3',  'COX3', 'CYTOMCHROME C OXIDASE SUBUNIT 1'],
          
          "CYTB": ['CYTOCHROME B', 'CYB', 'COB', 'COB / CYTB', 'CYTB', "COB/CYTB"],
          "ND1": ['NAD1', 'NSD1', 'NADH1', 'NADH DEHYDROGENASE SUBUNIT I', 'NADH DEHYDROGENASE SUBUNIT 1', 'NADH DESHYDROGENASE SUBUNIT 1', 'NAD1-0', 'ND1'],
@@ -217,7 +218,7 @@ genes = {"12S": ["12S", "12S RIBOSOMAL RNA", "12S RRNA", "RRNS", "SSU", "RRN12",
          
          "AK": ["AK", "ARGININE KINASE", "ARGK", "ARGKIN", "ARGS", "ARK"],
          "CAD": ["CAD", "CAD FRAGMENT 1", "CARBAMOYLPHOSPHATE SYNTHETASE"],
-         "EF1A": ["EF1-ALPHA", "EF1A", "ELONGATION FACTOR 1 ALPHA", "ELONGATION FACTOR 1-ALPHA"],
+         "EF1A": ["EF1-ALPHA", "EF1A", "ELONGATION FACTOR 1 ALPHA", "ELONGATION FACTOR 1-ALPHA", "EF-1A"],
          "H3": ["H3", "HISTONE 3", "HISTONE H3", "HIS3"],
          "RNApol": ["RNA POL II", "RNA POL2", "RNA POLYMERASE II LARGE SUBUNIT"],
          "Wg": ["WG", "WINGLESS", "WNG", "WNT", "WNT1", "WNT-4"]}
@@ -328,76 +329,79 @@ for rec in results:
                        "length": len(seq),
                        "seq": seq,
                        "frame": frame}
-        if output['txid'] in seqs:                              # If taxon ID in dict
-            if stdname in seqs[output['txid']]:                 # If gene in dict for that taxon ID
-                seqs[output['txid']][stdname].append(gene_output)    # Add gene info list to dict
+        if stdname in seqs:                              # If taxon ID in dict
+            if output['txid'] in seqs[stdname]:                 # If gene in dict for that taxon ID
+                seqs[stdname][output['txid']].append(gene_output)    # Add gene info list to dict
                 x += 1
             else:
-                seqs[output['txid']][stdname] = [gene_output]      # Otherwise add to dict with new key
+                seqs[stdname][output['txid']] = [gene_output]      # Otherwise add to dict with new key
                 x += 1
         else:
-            seqs[output['txid']] = {stdname: [gene_output]}      # Otherwise add to dict with new key
+            seqs[stdname] = {output['txid']: [gene_output]}      # Otherwise add to dict with new key
             x += 1
     if g == 0:
         nohits.append(rec.name)
 
-# for rec in species.values():
-#     for r in rec.values():
-#         print(r)
-
-print(f"\n{x} sequences found for requested genes\n"
-      f"Saving longest sequence for each gene for each NCBI taxonomy ID")
-
-#print("\nUnrecognised Species")
-#print(unrec_species)
 
 
-# Set record length as 0, iterate through records and replace whenever another sequence is longer.
-def findmax(x):
-    max = x[0]["length"]
-    maxrec = x[0]
-    for record in x:
-        if record["length"] > max:
-            max = record["length"]
-            maxrec = record
-    return maxrec
+if args.longest:
+    print("Saving longest sequence for each gene for each NCBI taxonomy ID")
+    # Set record length as 0, iterate through records and replace whenever another sequence is longer.
+    def findmax(x):
+        max = x[0]["length"]
+        maxrec = x[0]
+        for record in x:
+            if record["length"] > max:
+                max = record["length"]
+                maxrec = record
+        return maxrec
 
 
-# Dict for longest sequences, key is gene stdname, value is list of records
-gbids = []
-longest = {}
-for tax, stdname in seqs.items():
-    for gene, records in stdname.items():
-        chosen = findmax(records)
-        gbids.append(chosen['gbid'])
-        if gene in longest:
-            longest[gene].append(chosen)
-        else:
-            longest[gene] = [chosen]
+    # Dict for longest sequences, key is gene stdname, value is list of records
+    saved_gbids = []
+    saved_recs = {}
+    for stdname, tax in seqs.items():
+        for tax, records in tax.items():
+            chosen = findmax(records)
+            saved_gbids.append(chosen['gbid'])
+            if gene in saved_recs:
+                if tax in saved_recs[gene]:
+                    saved_recs[gene][tax].append(chosen)
+                else:
+                    saved_recs[gene][tax] = [chosen]
+            else:
+                saved_recs[gene] = {tax: [chosen]}
 
-            
+else:
+    saved_recs = seqs
+    saved_gbids = gbids
+
+# for gene, records in saved_recs.items():
+#     print(f"{len(records)} records found for {gene}")
+
 # Write fastas
-for gene, records in longest.items():
+for gene, tax in saved_recs.items():
     file = open(f"{gene}.fasta", "w")
     x = 0
     y = 0
-    for rec in records:
-        # try:
-        #     seq = rec['seq']
-        # except UndefinedSequenceError:
-        #     print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
-        if gene in rna:
-            file.write(f">{rec['gbid']}\n{rec['seq']}\n")
-            x += 1
-        else:
-            if rec['frame'] == '':
-                if y == 0:
-                    rf = open(f"{gene}.rf", "w")
-                rf.write(f">{rec['gbid']}\n{rec['seq']}\n")
-                y += 1
-            else:
-                file.write(f">{rec['gbid']};frame={rec['frame']}\n{rec['seq']}\n")
+    for tax, records in tax.items():
+        for rec in records:
+            # try:
+            #     seq = rec['seq']
+            # except UndefinedSequenceError:
+            #     print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
+            if gene in rna:
+                file.write(f">{rec['gbid']}\n{rec['seq']}\n")
                 x += 1
+            else:
+                if rec['frame'] == '':
+                    if y == 0:
+                        rf = open(f"{gene}.rf", "w")
+                    rf.write(f">{rec['gbid']}\n{rec['seq']}\n")
+                    y += 1
+                else:
+                    file.write(f">{rec['gbid']};frame={rec['frame']}\n{rec['seq']}\n")
+                    x += 1
 
     print(f'{x} records written to {gene}.fasta')
     if y > 0:
@@ -433,8 +437,9 @@ if unrec_genes != {}:
             #recs = ', '.join(recs)
             writer.writerow([gene, len(recs), recs])
 
-print('Misc Features')
+print('\nMisc Features')
 print(misc_feature)
-print("Other Feature Types")
+print("\nOther Feature Types")
 print(other_type)
-
+print("\nUnrecognised Species")
+print(unrec_species)
