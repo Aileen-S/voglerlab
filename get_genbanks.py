@@ -195,6 +195,8 @@ parser.add_argument("-l", "--longest", action='store_true', help="Save only long
 argcomplete.autocomplete(parser)
 args = parser.parse_args()         # Process input args from command line
 
+
+CYTOCHROME OXIDASE 1: 4 records
 genes = {"12S": ["12S", "12S RIBOSOMAL RNA", "12S RRNA", "RRNS", "SSU", "RRN12", "S-RRNA", "12S SMALL SUBUNIT RIBOSOMAL RNA", "SMALL SUBUNIT RIBOSOMAL RNA"],
          "16S": ["16S", "16S RIBOSOMAL RNA", "16S RRNA", "RRNL", "LSU", "RRN16", "L-RRNA", "16S LARGE SUBUNIT RIBOSOMAL RNA", "LARGE SUBUNIT RIBOSOMAL RNA"],
          "18S": ["18S", "18S RIBOSOMAL RNA", "18S RRNA", "18S SMALL SUBUNIT RIBOSOMAL RNA", "SMALL SUBUNIT RIBOSOMAL RNA"],
@@ -203,7 +205,7 @@ genes = {"12S": ["12S", "12S RIBOSOMAL RNA", "12S RRNA", "RRNS", "SSU", "RRN12",
          "ATP6": ['ATP SYNTHASE F0 SUBUNIT 6', 'APT6', 'ATP SYNTHASE A0 SUBUNIT 6', 'ATP SYNTHASE SUBUNIT 6', 'ATP SYNTHASE FO SUBUNIT 6', 'ATPASE6', 'ATPASE SUBUNIT 6', 'ATP6'],
          "ATP8": ['ATP SYNTHASE F0 SUBUNIT 8', 'APT8', 'ATP SYNTHASE A0 SUBUNIT 8', 'ATP SYNTHASE SUBUNIT 8', 'ATP SYNTHASE FO SUBUNIT 8', 'ATPASE8', 'ATPASE SUBUNIT 8', 'ATP8'],
 
-         "COX1": ['CYTOCHROME C OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE SUBUNIT I',   'CYTOCHROME C OXIDASE SUBUNIT I',   'COXI',   'CO1', 'COI',   'CYTOCHROME COXIDASE SUBUNIT I',   'CYTOCHROME OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE I', 'CYTOCHROME OXYDASE SUBUNIT 1', 'CYTOCHROME OXIDASE C SUBUNIT I', 'COX 1', 'COX1'],
+         "COX1": ['CYTOCHROME C OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE SUBUNIT I',   'CYTOCHROME C OXIDASE SUBUNIT I',   'COXI',   'CO1', 'COI',   'CYTOCHROME COXIDASE SUBUNIT I',   'CYTOCHROME OXIDASE SUBUNIT 1', 'CYTOCHROME OXIDASE I', 'CYTOCHROME OXYDASE SUBUNIT 1', 'CYTOCHROME OXIDASE C SUBUNIT I', 'COX 1', 'COX1', 'CYTCHROME OXIDASE SUBUNIT I', 'CYTOCHROME OXIDASE 1'],
          "COX2": ['CYTOCHROME C OXIDASE SUBUNIT 2', 'CYTOCHROME OXIDASE SUBUNIT II',  'CYTOCHROME C OXIDASE SUBUNIT II',  'COXII',  'CO2', 'COII',  'CYTOCHROME COXIDASE SUBUNIT II',  'CYTOCHROME OXIDASE SUBUNIT 2', 'CYTOCHROME OXIDASE II', 'CYTOCHROME C OXIDASE II', 'CYTOCHROME OXYDASE C SUBUNIT 2', 'CYTOCHROME OXIDASE C SUBUNIT 2', 'COX2', 'CYTOCHROME OXIDASE (CO) II'],
          "COX3": ['CYTOCHROME C OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE SUBUNIT III', 'CYTOCHROME C OXIDASE SUBUNIT III', 'COXIII', 'CO3', 'COIII', 'CYTOCHROME COXIDASE SUBUNIT III', 'CYTOCHROME OXIDASE SUBUNIT 3', 'CYTOCHROME OXIDASE III', 'CYTOCHROME OXIDASE C SUBUNIT 3',  'COX3', 'CYTOMCHROME C OXIDASE SUBUNIT 1'],
          
@@ -380,32 +382,29 @@ else:
 #     print(f"{len(records)} records found for {gene}")
 
 # Write fastas
+noframe = {}
 for gene, tax in saved_recs.items():
     file = open(f"{gene}.fasta", "w")
     x = 0
     y = 0
     for tax, records in tax.items():
         for rec in records:
-            # try:
-            #     seq = rec['seq']
-            # except UndefinedSequenceError:
-            #     print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
-            if gene in rna:
-                file.write(f">{rec['gbid']}\n{rec['seq']}\n")
-                x += 1
-            else:
-                if rec['frame'] == '':
-                    if y == 0:
-                        rf = open(f"{gene}.rf", "w")
-                    rf.write(f">{rec['gbid']}\n{rec['seq']}\n")
-                    y += 1
-                else:
-                    file.write(f">{rec['gbid']};frame={rec['frame']}\n{rec['seq']}\n")
+            try:
+                seq = rec['seq']
+                if gene in rna:
+                    file.write(f">{rec['gbid']}\n{seq}\n")
                     x += 1
+                else:
+                    file.write(f">{rec['gbid']};frame={rec['frame']}\n{seq}\n")
+                    x += 1
+                    if rec['frame'] == '': 
+                        if gene in noframe: noframe[gene].append(rec['gbid'])
+                        else: noframe[gene] = [rec['gbid']]
+            except UndefinedSequenceError:
+                print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
 
     print(f'{x} records written to {gene}.fasta')
-    if y > 0:
-        print(f'{y} records without reading frame written to {gene}.rf')
+
 
 # Write CSV metadata file
 added = []
@@ -437,9 +436,12 @@ if unrec_genes != {}:
             #recs = ', '.join(recs)
             writer.writerow([gene, len(recs), recs])
 
-print('\nMisc Features')
+print('\nMisc Features:')
 print(misc_feature)
-print("\nOther Feature Types")
+print("\nOther Feature Types:")
 print(other_type)
-print("\nUnrecognised Species")
+print("\nUnrecognised Species:")
 print(unrec_species)
+print("\nMissing Reading Frames:")
+for gene, gbids in noframe.items():
+    print(f"{gene}: {gbids}")
