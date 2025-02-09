@@ -399,9 +399,8 @@ for gene, tax in saved_recs.items():
                     if rec['frame'] == '': 
                         if gene in noframe: noframe[gene].append(rec['gbid'])
                         else: noframe[gene] = [rec['gbid']]
-            except UndefinedSequenceError:
+            except Bio.Seq.UndefinedSequenceError:
                 print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
-
     print(f'{x} records written to {gene}.fasta')
 
 
