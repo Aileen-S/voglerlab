@@ -86,19 +86,22 @@ def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output
                 with Entrez.efetch(db="nucleotide", id=','.join(chunk), rettype="gb", retmode="text") as handle:
                     results = SeqIO.parse(handle, "gb")
                     for record in results:
-                        processed += 1
-                        if processed % 500 == 0:
-                            print(f"Downloaded {processed} of {total} records")
-                        if processed == total:
-                            print(f"Downloaded {processed} of {total} records")
-                        yield record
+                        try:
+                            processed += 1
+                            if processed % 500 == 0:
+                                print(f"Downloaded {processed} of {total} records")
+                            if processed == total:
+                                print(f"Downloaded {processed} of {total} records")
+                            yield record
 
-                        if save:
-                            SeqIO.write(record, outfile, "genbank")
+                            if save:
+                                SeqIO.write(record, outfile, "genbank")
+                        except HTTPException:
+                            continue
                     break # Stop addition retries if successful
             except Entrez.HTTPError:
-                print("HTTP error fetching records; retrying in 20 seconds")
-                time.sleep(delay)
+                print(f"Incomplete read error for record {record.id}")
+                continue
         else:
             print(f"Failed to retrieve records for chunk {i}-{i+chunk_size}")
 
