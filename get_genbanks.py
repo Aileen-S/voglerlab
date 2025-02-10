@@ -6,6 +6,7 @@ from Bio import SeqIO
 from collections import Counter
 import time
 import re
+from Bio.Seq import Seq, UndefinedSequenceError
 
 # Function definitions
 
@@ -399,7 +400,7 @@ for gene, tax in saved_recs.items():
                     if rec['frame'] == '': 
                         if gene in noframe: noframe[gene].append(rec['gbid'])
                         else: noframe[gene] = [rec['gbid']]
-            except Bio.Seq.UndefinedSequenceError:
+            except UndefinedSequenceError:
                 print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
     print(f'{x} records written to {gene}.fasta')
 
