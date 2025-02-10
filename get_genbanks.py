@@ -97,11 +97,11 @@ def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output
                             if save:
                                 SeqIO.write(record, outfile, "genbank")
                         except HTTPException:
-                            continue
+                            print(f"Incompete read error with record {record.name}")
                     break # Stop addition retries if successful
             except Entrez.HTTPError:
-                print(f"Incomplete read error for record {record.id}")
-                continue
+                print("HTTP error fetching records; retrying in 20 seconds")
+                time.sleep(delay)
         else:
             print(f"Failed to retrieve records for chunk {i}-{i+chunk_size}")
 
