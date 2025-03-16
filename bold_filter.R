@@ -98,6 +98,9 @@ if (!is.null(opt$genbank)) {
 
 # Keep only COI sequences
 if ( !is.null(opt$barcode)) {
+  if ('marker_code' %in% names(f_meta)) {
+    f_meta <- f_meta %>% mutate(markercode = marker_code)
+  }
   f_meta <- f_meta %>% filter(markercode=="COI-5P")
   print(paste(nrow(f_meta), 'records with COI-5P sequences'))
 }
