@@ -70,9 +70,10 @@ if ( !is.null(opt$taxon) ) {
   # Search existing files  
   } else {
   #meta <- read.table(opt$tsv, sep = '\t', header = TRUE)
-  meta <- read.csv(opt$tsv, header = TRUE, sep = "\t", quote = "")
-  
+  meta <- read.csv(opt$tsv, header = TRUE, sep = "\t", quote = "")  
   } 
+
+  meta[meta == 'None'] <- NA
 
 ####################################
 # Filter dataframe and write to file
@@ -96,19 +97,22 @@ if (!is.null(opt$genbank)) {
   f_meta <- meta
 }
 
+# Remove records without sequences or named genes
+if ('marker_code' %in% names(f_meta)) {
+  f_meta <- f_meta %>% mutate(markercode = marker_code)
+}
+f_meta <- f_meta %>% filter(markercode!="")
+#f_meta <- f_meta %>% filter(bin_uri!="")
+if ('nuc' %in% names(f_meta)) {
+  f_meta <- f_meta %>% mutate(nucleotides = nuc)
+}
+f_meta <- f_meta %>% filter(nucleotides!="")
+
 # Keep only COI sequences
 if ( !is.null(opt$barcode)) {
-  if ('marker_code' %in% names(f_meta)) {
-    f_meta <- f_meta %>% mutate(markercode = marker_code)
-  }
   f_meta <- f_meta %>% filter(markercode=="COI-5P")
   print(paste(nrow(f_meta), 'records with COI-5P sequences'))
 }
-
-# Remove records without sequences or named genes
-f_meta <- f_meta %>% filter(markercode!="")
-#f_meta <- f_meta %>% filter(bin_uri!="")
-f_meta <- f_meta %>% filter(nucleotides!="")
 
 # Get sequence lengths
 f_meta$sequence_length <- nchar(f_meta$nucleotides)
@@ -157,7 +161,7 @@ if ( !is.null(opt$metadata)) {
   f_meta <- merge(f_meta, ncbi, by = 'species_name', all.x = TRUE)
 # 
 } else {
-  f_meta[ , 'ncbi_taxid'] <- ''
+  f_meta[ , 'ncbi[!is.na(df$coords)]_taxid'] <- ''
 }
 
 #f_meta <- mutate(f_meta, TXID = replace(TXID, NA, ""))
@@ -169,10 +173,21 @@ f_meta$nucleotides <- gsub("-","",as.character(f_meta$nucleotides))
 #Edit dataframe to match lab metadata
 empty <- c('lab_id', 'subgenus', 'subtribe',	'tribe', 'superfamily',	'infraorder',	'suborder',	'genbank_accession')
 f_meta[ , empty] <- ''
-csv <- f_meta %>% select(ncbi_taxid, genbank_accession,	processid, bin_uri,	lab_id, suborder,	infraorder, superfamily, family_name, 
+if ('family_name' %in% names(f_meta)) {
+  csv <- f_meta %>% select(genbank_accession,	processid, bin_uri,	lab_id, suborder,	infraorder, superfamily, family_name, 
                          subfamily_name, tribe, subtribe, genus_name, subgenus, species_name, subspecies_name, country,	lat,	lon)
+} else {
+  f_meta$coord <- gsub("\\[|\\]", "", f_meta$coord)
+  coords <- strsplit(f_meta$coord[!is.na(f_meta$coord)], ", ")
+  f_meta$lat[!is.na(f_meta$coord)] <- as.numeric(sapply(coords, function(x) x[1]))
+  f_meta$lon[!is.na(f_meta$coord)] <- as.numeric(sapply(coords, function(x) x[2]))
+  colnames(f_meta)[colnames(f_meta) == "country.ocean"] <- "country"
+  csv <- f_meta %>% select(genbank_accession,	processid, bin_uri,	lab_id, suborder,	infraorder, superfamily, family, 
+  subfamily, tribe, subtribe, genus, subgenus, species, subspecies, country,	lat, lon)
 
-new_names <- c("ncbi_taxid", "genbank_accession",	"bold_id",	"bold_bin",	"lab_id",	"suborder", "infraorder",	"superfamily",	
+}
+
+new_names <- c("genbank_accession",	"bold_id",	"bold_bin",	"lab_id",	"suborder", "infraorder",	"superfamily",	
                "family", "subfamily",	"tribe", "subtribe",	"genus",	"subgenus",	"species", "subspecies", "country",	"latitude",	"longitude")
 names(csv) <- new_names
 
