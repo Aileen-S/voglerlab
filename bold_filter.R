@@ -22,7 +22,7 @@ library('getopt')
 
 spec <- matrix(c(
   'taxon',      't', 2, 'character', 'BOLD search term',
-  'tsv',        'c', 2, 'character', 'Path to existing BOLD metadata tsv to be filtered',
+  'tsv',        'i', 2, 'character', 'Input BOLD metadata tsv to be filtered',
   'genbank',    'g', 2, 'logical',   'Remove sequences also on GenBank',
   'barcode',    'b', 2, 'character', 'Save only barcodes, delete other genes',
   'raw',        'r', 2, 'logical',   'Save raw metadata, before any processing.',
@@ -82,8 +82,16 @@ if ( !is.null(opt$taxon) ) {
 
 if (!is.null(opt$genbank)) {
   # Filter for non-empty and non-missing genbank_accession
-  f_meta <- meta %>% filter(is.na(genbank_accession) | genbank_accession == "")
-  print(paste(nrow(f_meta), 'records remaining after removing those with GenBank accession'))
+  # f_meta <- meta %>% filter(is.na(genbank_accession) | genbank_accession == "")
+  # print(paste(nrow(f_meta), 'records remaining after removing those with GenBank accession'))
+  if ('institution_storing' %in% names(meta)) {
+    f_meta <- meta[!grepl("GenBank", meta$institution_storing), ]
+  } else if ('sequence_run_site' %in% names(meta)) {
+    f_meta <- meta[!grepl("GenBank", meta$sequence_run_site), ]
+  } else {
+    f_meta <- meta
+  }
+  print(paste(nrow(f_meta), 'records remaining after removing those from GenBank'))
 } else {
   f_meta <- meta
 }
