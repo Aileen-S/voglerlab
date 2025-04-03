@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser(description="Rename sequences in fasta file fro
 parser.add_argument("-i", "--input", type=str, help="Input fasta")
 parser.add_argument("-c", "--csv", type=str, help="CSV file, new names in first column, old names in second")
 parser.add_argument("-l", "--list", action='store_true', help='Specify CSV second column is a comma delimited list of IDs')
-parser.add_argument("-d", "--dups", action='store_true', help='Keep duplicates: ie, if multiple sequences have the same new ID, only change the name of the longest sequence.')
+parser.add_argument("-d", "--dups", action='store_true', help='Keep duplicate new IDs: ie, if multiple sequences have the same new ID, only change the name of the longest sequence.')
 parser.add_argument("-o", "--output", type=str, help="Output fasta file")
 parser.add_argument("-r", "--renamed", type=str, help="Optional output csv with old and new names")
 
@@ -74,7 +74,7 @@ for new, old in recs.items():
     for rec_id, rec_seq in old.items():
         # Get sequence length
         rec_seq = rec_seq.upper()
-        gaps = rec_seq.count('-') + rec.seq.count('N') + rec.seq.count('XX')
+        gaps = rec_seq.count('-') + rec_seq.count('N') + rec_seq.count('X') + rec_seq.count('*')
         length = len(rec_seq) - gaps
 
         if x == 0:
