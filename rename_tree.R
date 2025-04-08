@@ -11,10 +11,18 @@ spec <- matrix(c(
   'label',    'l', 2, 'character', 'Custom labels: specify columns to use in labels: comma separated column names in order
                                     Default without this option is new names in first column, old names in second column',
   'output',   'o', 1, 'character', 'Output tree file',
-  #'drop_old', 'd', 2, 'logical',   'Drop original tip names (default keep old name at start of new name)'
+  'drop_old', 'd', 2, 'logical',   'Drop original tip names (default keep old name at start of new name)'
 ), byrow = TRUE, ncol = 5)
 opt <- getopt(spec)
 
+# setwd('/home/aileen/onedrive/treebuilding/13Ktree/gmt/raxml')
+# opt <- data.frame(
+#   input = c('gmt13_coipart_nt.raxml_treeshrink/output.bestTree'),
+#   csv = c('~/onedrive/treebuilding/metadata/mmg_test.csv'),
+#   label = c('superfamily,family,subfamily,tribe,genus,species,morphospecies'),
+#   output = c('test.tree'),
+#   tips = c('lab_id')
+# )
 
 # Function to strip quotes if present
 strip_quotes <- function(x) {
@@ -93,6 +101,25 @@ if (!is.null (opt$label)) {
   tree$tip.label[!is.na(matches)] <- df$fasta_id[matches[!is.na(matches)]]
 }
 
+
+
+# Default taxonomy labels from master_metadata.csv
+    # } else {
+  #   meta <- meta %>%
+  #     mutate(fasta_id = case_when(
+  #       suborder == 'Myxophaga' | suborder == 'Archostemata' ~ paste(ncbi_taxid, suborder, family, genus, species, subspecies, sep = '_'), # Add suborder for small suborders
+  #       family != "" ~ paste(ncbi_taxid, family, subfamily, tribe, genus, species, subspecies, sep = '_'),  # If family
+  #       !is.na(superfamily) & superfamily != "" ~ paste(ncbi_taxid, superfamily, sep = '_'), # Otherwise use lowest available rank of higher taxonomy
+  #       !is.na(infraorder) & infraorder != "" ~ paste(ncbi_taxid, infraorder, sep = '_'),
+  #       !is.na(suborder) & suborder != "" ~ paste(ncbi_taxid, suborder, sep = '_'),
+  #       TRUE ~ order  # If both family and suborder are blank
+  #     )) %>%
+  #     mutate(fasta_id = gsub("_+$", "", fasta_id)) %>%
+  #     unique() %>%
+  #     select(ncbi_taxid, rec_id, genbank_accession, bold_id, bold_bin, lab_id, order, suborder, infraorder,
+  #           superfamily,  family, subfamily, tribe, genus, subgenus, species, subspecies, species_id, fasta_id)
+  # }
+# }
 
 # Write tree
 if (is.null (opt$nexus)) {
