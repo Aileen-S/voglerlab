@@ -29,7 +29,19 @@ if args.dups:
             seen.append(str(record.name))
             records.append(record)
         else:
+            # For dulicate IDs, keep record with longest sequence
             dups.append(record.name)
+            record.seq = record.seq.upper()
+            new_gaps = record.seq.count('-') + record.seq.count('N') + record.seq.count('X') + record.seq.count('*')
+            new_length = len(record.seq) - new_gaps
+            for old in records:
+                if old.name == record.name:
+                    old = old
+            old_gaps = old.seq.count('-') + old.seq.count('N') + old.seq.count('X') + old.seq.count('*')
+            old_length = len(old.seq) - old_gaps
+            if new_length > old_length:
+                records.remove(old)
+                records.append(record)
 
     if len(dups) > 0:
         print(f'{len(dups)} duplicate records removed from {args.input}: {dups}')
