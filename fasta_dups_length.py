@@ -24,7 +24,7 @@ dups = []
 
 if args.dups:
 # Remove duplicate IDs
-    for record in SeqIO.parse(args.input, "fasta"):  
+    for record in SeqIO.parse(args.input, "fasta"):
         if str(record.name) not in seen:
             seen.append(str(record.name))
             records.append(record)
@@ -36,11 +36,15 @@ if args.dups:
             new_length = len(record.seq) - new_gaps
             for old in records:
                 if old.name == record.name:
-                    old = old
-            old_gaps = old.seq.count('-') + old.seq.count('N') + old.seq.count('X') + old.seq.count('*')
-            old_length = len(old.seq) - old_gaps
+                    old_rec = old
+                    break
+            old_gaps = old_rec.seq.count('-') + old_rec.seq.count('N') + old_rec.seq.count('X') + old_rec.seq.count('*')
+            old_length = len(old_rec.seq) - old_gaps
             if new_length > old_length:
-                records.remove(old)
+                for i, rec in enumerate(records):
+                    if rec.name == old_rec.name:
+                        del records[i]
+                        break
                 records.append(record)
 
     if len(dups) > 0:
