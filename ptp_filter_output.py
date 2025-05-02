@@ -27,69 +27,86 @@ for rec in records:
     count[rec.id] = length
 print(f'{x} taxa in supermatrix')
 
-keep = []
+keep = set()
 if args.keep:
     file = open(args.keep)
     lines = file.readlines()
     for line in lines:
-        keep.append(line.strip)
+        keep.add(line.strip)
 
 file = open(args.input)
 
 # Save mPTP delimited species lists
-species_lists = []
+species_lists = {}
 temp = []
-x = 0
+start_processing = False
+
 lines = file.readlines()
 for line in lines:
     if 'Number of delimited species' in line:
         print(line)
-    x += 1
-    if x < 10:
-        continue
-    if 'Species ' in line:
-        continue
-    line = line.strip()
-    if line != '':
-        temp.append(line)
 
-        # Keep taxa with species/subspecies at end of id string.
-        if args.named:
-            parts = line.rsplit('_', 1)
-            try:
-                if parts[1].islower():
-                    keep.append(line)
-            except IndexError:
-                pass
-    else:
-        species_lists.append(temp)
+    # skip initial lines
+    if 'Species ' in line:
+        if temp:
+            species_lists[species_no] = temp
+        species_no = line.strip().replace('Species ', '').replace(':', '')
         temp = []
+        start_processing = True
+    else:
+        # process non-empty lines
+        if start_processing and line:
+
+            line = line.strip()
+            if line != '':
+                temp.append(line)
+
+                # Keep taxa with species/subspecies at end of id string.
+                if args.named:
+                    parts = line.rsplit('_', 1)
+                    try:
+                        if parts[1].islower():
+                            keep.add(line)
+                    except IndexError:
+                        #print(f'IndexError: {line}')
+                        pass
+if temp:
+    species_lists[species_no] = temp
 
 # Get taxon with most genes in each species list
-chosen = []
-for species in species_lists:
+for species_no, species_list in species_lists.items():
     nt = 0   # nucleotide count
     ch = ''  # chosen taxon
-    lab = 0
-    for s in species:
-        if s in keep:
-            chosen.append(s)
+    keepers = []
+    others = []
+    for spec in species_list:
+        if spec in keep:
+            keepers.append(spec)
         else:
-            try:
-                if count[s] > nt:
-                    nt = count[s]
-                    ch = s
-            except KeyError:
-                print(f'{s} is not in metadata')
-
-    if lab == 0:
-        chosen.append(ch)
+            others.append(spec)
+    # Find longest sequence in keep list (if used)
+    for spec in keepers:
+        try:
+            if count[spec] > nt:
+                nt = count[spec]
+                longest = spec
+        except KeyError:
+            print(f'{s} is not in metadata')
+    # Find longest sequence in others list
+    for spec in others:
+        try:
+            if count[spec] > nt:
+                nt = count[spec]
+                longest = spec
+        except KeyError:
+            print(f'{s} is not in metadata')
+    # Keep other if longer than longest in keep
+    keep.add(longest)
 
 output = open(args.output, 'w')
-for m in chosen:
+for m in keep:
     if m != '':
         output.write(f'{m}\n')
 
-chosen = list(set(chosen))
-
-print(f'{len(chosen)} taxa saved to {args.output}')
+#chosen = list(set(chosen))
+print(f'{len(keep)} taxa saved to {args.output}')
