@@ -69,8 +69,36 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
     gbids = list(gbids)
     return gbids
 
+# Accessions to GBIDs
+from Bio import Entrez
+import time
+
+Entrez.email = "your.email@example.com"  # Remember to set this!
+
+def accs_to_gbids(ids, chunk_size=500, retries=10, delay=30):
+    total = len(ids)
+    all_ids = []
+    for i in range(0, total, chunk_size):
+        chunk = ids[i:i + chunk_size]
+        for attempt in range(retries):
+            try:
+                term = " OR ".join(chunk)
+                handle = Entrez.esearch(db="nucleotide", term=term)
+                record = Entrez.read(handle)
+                all_ids.extend(record["IdList"])
+                break  # successful attempt
+            except Entrez.HTTPError:
+                print(f"HTTP error for chunk {i}-{i+chunk_size}; retrying in {delay}s")
+                time.sleep(delay)
+        else:
+            print(f"Failed to retrieve GBIDs {i}-{i+chunk_size}")
+
+    return all_ids
+
+
+
 # Search GenBank with ID list
-def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output="records.gb"):
+def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output="records.gb", exclude=[]):
     total = len(ids)
     processed = 0
     print(f'Downloading records for {total} GenBank IDs')
@@ -187,14 +215,26 @@ def genbank_metadata(rec):
 # Argument parser
 # Add option to find only mito genes, or only selected genes.
 parser = argparse.ArgumentParser(description="Search GenBank, retrieve gene sequences and save as fasta.")
+
+# Input options
+# Choose either taxon or file (file of IDs with one per line)
+# If using file, specify accessions or taxon IDs
+# Add your email address for NCBI
 parser.add_argument("-t", "--taxon", type=str, help="Taxon of interest")
 parser.add_argument('-f', '--file', type=str, help="Input file with accession or taxon ID list")
 parser.add_argument('-r', '--ref', choices=['txid', 'gbid'], help="If using --file option, specify accessions or taxon IDs.")
 parser.add_argument("-e", "--email", type=str, help="Your email registered with NCBI")
+
+# Filtering options
+parser.add_argument("-x", "--exclude", type=str, help="Input file with list of accession to skip (will not search or save these records)")
 parser.add_argument('-m', '--mito', action='store_true', help='Save only mitochondrial protein-coding genes')
-parser.add_argument("-g", "--gene", type=str, help="Save specified gene only")
-parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results")
+parser.add_argument("-g", "--gene", type=str, help="Save specified gene only (use gene name format from genes dist below)")
 parser.add_argument("-l", "--longest", action='store_true', help="Save only longest sequence for each NCBI taxid")
+
+# Output options
+# Optional output of genbank format file as well as fasta
+parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results")
+
 
 argcomplete.autocomplete(parser)
 args = parser.parse_args()         # Process input args from command line
@@ -248,6 +288,8 @@ if args.ref == 'gbid':
         gbids.append(acc)
     print(f'{len(gbids)} IDs found in {args.file}')
 
+
+
 else:
     if args.ref  == 'txid':
         taxids = []
@@ -266,6 +308,22 @@ else:
         gbids = get_gbids(basesearch)
         #print(f"Found {len(gbids)} records for {args.taxon}")
 
+# Remove 'exlude' GBIDs from search list
+exc_accs = []
+if args.exclude:
+    exclude = open(args.exclude)
+    lines = exclude.readlines()
+    for line in lines:
+        acc = line.strip()
+        exc_accs.append(acc)
+    print(f'{len(exc_accs)} IDs found in {args.exclude} with be excluded from search results')
+
+    # Convert to from accessions to GBIDs
+    exc = accs_to_gbids(exc_accs)
+    filtered = [id for id in gbids if id not in exc]
+    gbids = filtered
+    print(f'{len(gbids)} IDs remaining after exclusions removed')
+
 # Search through GBIDs
 meta = {}
 seqs = {}
@@ -277,9 +335,9 @@ unrec_species = []
 x = 0  # Count taxids
 
 if args.save:
-    results = search_genbank(gbids, save=True, output=args.save)
+    results = search_genbank(gbids, save=True, output=args.save, exclude=exc)
 else:
-    results = search_genbank(gbids)
+    results = search_genbank(gbids, exclude=exc)
 for rec in results:
     if args.taxon:
         if args.taxon not in rec.annotations["taxonomy"]:
