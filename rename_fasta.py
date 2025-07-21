@@ -1,63 +1,77 @@
 #!/usr/bin/env python3
 
 from Bio import SeqIO
-import argparse, argcomplete
-import csv
+import argparse
+import pandas as pd
+
 
 parser = argparse.ArgumentParser(description="Rename sequences in fasta file from CSV")
 parser.add_argument("-i", "--input", type=str, help="Input fasta")
-parser.add_argument("-c", "--csv", type=str, help="CSV file, new names in first column, old names in second")
-parser.add_argument("-l", "--list", action='store_true', help='Specify CSV second column is a comma delimited list of IDs')
+parser.add_argument("-o", "--output", type=str, help="Output fasta")
+
+parser.add_argument("-c", "--csv", type=str, help="CSV file: default new names in first column, old names in second, else use -t and -l flags")
+parser.add_argument("-t", "--tips", type=str, help="Column with fasta IDs, if not second column")
+parser.add_argument("-l", "--label", type=str, help="Column names required in labels, if not first column. Comma delimited list.")
+
+#parser.add_argument("-k", "--list", action='store_true', help='Specify CSV second column is a comma delimited list of IDs')
 parser.add_argument("-d", "--dups", action='store_true', help='Keep duplicate new IDs: ie, if multiple sequences have the same new ID, only change the name of the longest sequence.')
-parser.add_argument("-o", "--output", type=str, help="Output fasta file")
 parser.add_argument("-r", "--renamed", type=str, help="Optional output csv with old and new names")
 
-argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 
+#args = argparse.Namespace(input='test.fasta',csv='test.csv', tips='a', label='b,c,d') # This is how I step through the script interactively
+
+with open(args.csv) as file:
+    # Get column with old IDs
+    tips = args.tips if args.tips else 1
+    # Get column(s) with new IDs
+    cols = args.label.split(',') if args.label else 0
+    if cols:
+        cols = [tips] + [col for col in cols if col != tips]
+    meta = pd.read_csv(file, index_col=tips, usecols=cols)
+    meta = meta.drop_duplicates()
+
+    # Check for duplicate values in the specified tips column
+    if meta.index.duplicated().any():
+        duplicates = meta.index[meta.index.duplicated()]
+        # Keep unique values
+        duplicates = set(duplicates)
+        print(f"Duplicate IDs in {tips} column: {list(duplicates)}")
+print(meta)
+
+if tips in cols:
+    cols.remove(tips)
+
 recs = {}
-
-if args.csv:
-    # new names in first column, old names in second
-    meta = {}
-    with open(args.csv) as file:
-        metadata = csv.reader(file)
-        for row in metadata:
-            if row [0] != '' and row[0] != 'NA':
-                if args.list:
-                    meta[row[0]] = row[1].split(',')
-                else:
-                    meta[row[1]] = row[0]
-
-    records = SeqIO.parse(args.input, "fasta")
-    for rec in records:
-        new_id = rec.id
+records = SeqIO.parse(args.input, "fasta")
+for rec in records:
+    print(rec.id)
+    new = []
+    new_id = rec.id # Default keep old ID
+    # Check if ID is in metadata
+    # Join values in chosen column(s) to get new ID
+    r_id = rec.id.split(';')[0]
+    if r_id in meta.index:
+        for col in cols:
+            new.append(str(meta.loc[r_id][col]))
+        new_id = str('_'.join(new))
+        # Append new ID to old ID, preserving frame tags
         if ';frame=' in rec.id:
             r_id, frame = rec.id.split(';')
-            if args.list:
-                # For list mode, check if r_id is in meta keys
-                for k, v in meta.items():
-                    if r_id in v:
-                        new_id = f'{k};{frame}'
-                        break  # Break once found
-            else:
-                # For non-list mode, check exact match
-                if r_id in meta:
-                    new_id = f'{meta[r_id]};{frame}'
+            new_id = f'{r_id}_{new_id};{frame}'
         else:
-            if args.list:
-                for k, v in meta.items():
-                    if rec.id in v:
-                        new_id = k
-            else:
-                if rec.id in meta:
-                    new_id = meta[rec.id]
-        if new_id in recs:
-            recs[new_id][rec.id] = rec.seq
-        else:
-            recs[new_id] = {rec.id: rec.seq}
+            new_id = f'{r_id}_{new_id}'
 
+
+    if new_id in recs:
+        recs[new_id][rec.id] = rec.seq
+    else:
+        recs[new_id] = {rec.id: rec.seq}
+
+# for k, v in recs.items():
+#     print(k)
+#     print(v)
 
 # Check for duplicate names
 # Save longest sequence for duplicates
