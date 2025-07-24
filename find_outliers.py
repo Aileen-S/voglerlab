@@ -30,7 +30,7 @@ def find_outliers(fasta, consensus_threshold=0.7, match_threshold=0.7):
     alignment = AlignIO.read(fasta, "fasta")
     alignment_length = alignment.get_alignment_length()
     print(f'Alignment length: {alignment_length}')
-    sequences = [str(record.seq) for record in alignment]
+    sequences = [str(record.seq.upper()) for record in alignment]
     num_sequences = len(sequences)
 
     columns_to_keep = []
