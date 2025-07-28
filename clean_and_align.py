@@ -40,9 +40,10 @@ def parse_args():
     # Specify thresholds
     parser.add_argument("-ct", "--consensus_threshold", type=float, help="Minimum proportion of characters to accept as consensus character. Default 0.7")
     parser.add_argument("-mt", "--match_threshold", type=float, help="Mimumum similarity to consensus"
-                                                                     "For coding sequences: acts chunks of 20bp, default 0.5"
+                                                                     "For coding sequences: acts on chunks of 20bp, default 0.5"
                                                                      "For RNA, works on whole sequence, default 0.7")
-    parser.add_argument("-gt", "--gap_threshold", type=float, help="Maximum proportion gaps to accept. Default 0.95") 
+    parser.add_argument("-gt", "--gap_threshold", type=float, help="Maximum proportion gaps to accept. Default 0.95")
+    parser.add_argument("-w", "--warning", action='store_true', help="If no sequences pass initial threshold checks, proceed with cleaning anyway. Default exit script.")
 
     # MAFFT options for final alignment, instead of default fast alignment
     # Default with profile: 'mafft --addfragments input --retree 1 --maxiterate 0 --adjustdirection --anysymbol --thread autodetect profile
@@ -357,16 +358,22 @@ def main():
 
     check, good = gap_ratio_filter(aligned, consensus_threshold, match_threshold, data=data)
     if good == []:
-        print('No sequences passed filtering criteria'
-              'Advise checking profile and alignment and/or trying again with a lower threshold.')
-        sys.exit()
+        print('No sequences passed filtering criteria\n'
+              'Consider checking profile and alignment and adjusting thresholds.')
+        if not args.warning:
+            sys.exit()
 
-    check_out, good = find_outliers(good, consensus_threshold, match_threshold, data=data, locus=args.locus)
-    if good == []:
-        print('No sequences passed filtering criteria'
-              'Advise checking profile and alignment and/or trying again with a lower threshold.')
-        sys.exit()
-    check.extend(check_out)
+    else:
+        check_out, good = find_outliers(good, consensus_threshold, match_threshold, data=data, locus=args.locus)
+        if good == []:
+            print('No sequences passed filtering criteria\n'
+                  'Consider checking profile and alignment and adjusting thresholds.')
+            if args.warning:
+                print('Will attempt to clean all sequneces')
+                good = [rec for rec in aligned]
+            else:
+                sys.exit()
+        check.extend(check_out)
 
     # Skip gap threshold and stop codon filter for RNA
     if args.locus != 'rna':
