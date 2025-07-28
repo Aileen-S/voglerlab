@@ -444,7 +444,6 @@ def main():
             good_nt = align_sequences(good_nt, args.nt_profile)
 
         good_nt = delete_gappy_columns(good_nt, gap_threshold=args.gap_threshold)
-        good_nt = replace_partial_codons(good_nt, trans_table)
         if args.nt_profile:
             good_nt = trim_to_profile(good_nt)
         with open(args.good, 'w') as file:
