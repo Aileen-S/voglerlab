@@ -364,7 +364,7 @@ def main():
             sys.exit()
 
     else:
-        check_out, good = find_outliers(good, consensus_threshold, match_threshold, data=data, locus=args.locus)
+        check_out, good = find_outliers(good, consensus_threshold, match_thres2944862hold, data=data, locus=args.locus)
         if good == []:
             print('No sequences passed filtering criteria\n'
                   'Consider checking profile and alignment and adjusting thresholds.')
@@ -460,8 +460,8 @@ def main():
     # Save sequences that did not pass filters
     if check != []:
         print('\nSaving seqeunces that did not pass filters')
-        # check_ids = [rec.id for rec in check]
-        # check = [rec for rec in nt_records if rec.id in check_ids]
+        check_ids = [rec.id for rec in check]
+        check = [rec for rec in nt_records if rec.id in check_ids]
         # print(f'CHECK check: {check}')
 
         with open(args.check, 'w') as file:
