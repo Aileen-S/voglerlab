@@ -462,7 +462,7 @@ def main():
         print('\nSaving seqeunces that did not pass filters')
         check_ids = [rec.id for rec in check]
         check = [rec for rec in nt_records if rec.id in check_ids]
-        # print(f'CHECK check: {check}')
+        check = align_sequences(check, args.nt_profile)
 
         with open(args.check, 'w') as file:
             SeqIO.write(check, file, 'fasta')
