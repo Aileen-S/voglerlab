@@ -277,15 +277,17 @@ def find_internal_stop_codons(records, data, locus, reading_frames):
     print('Finding internal stop codons')
     good = []
     check = []
-    if data == 'nt':
-        stop_codons = ['TAA', 'TAG'] if locus == 'mito' else ['TAA', 'TAG', 'TGA']
-        for rec in records:
+    for rec in records:
+        end = len(rec.seq) - next(i for i, c in enumerate(reversed(rec.seq)) if c != '-')
+        seq = rec.seq[:end]
+        if data == 'nt':
+            stop_codons = ['TAA', 'TAG'] if locus == 'mito' else ['TAA', 'TAG', 'TGA']
             frame = reading_frames[rec.id] - 1
-            codons = [rec.seq[i:i+3] for i in range(frame, len(rec.seq), 3)]
+            codons = [seq[i:i+3] for i in range(frame, len(seq), 3)]
             check.append(rec) if any(stop for stop in stop_codons in codons[:-1]) else good.append(rec)
-    if data == 'aa':
-        for rec in records:
-            check.append(rec) if '*' in rec.seq[:-1] else good.append(rec)
+        if data == 'aa':
+            for rec in records:
+                check.append(rec) if '*' in seq[:-1] else good.append(rec)
     print(f'{len(good)} sequences without internal stop codons')
     return check, good
 
@@ -380,12 +382,14 @@ def main():
     # Translate and align
     if args.locus == 'rna':
         aligned = align_sequences(records, args.nt_profile)
-        data = 'nt'        
+        data = 'nt'
+        translation=False
     else:
         trans_table = 5 if args.locus == 'mito' else 1
         aa_recs, reading_frames = translate(records, trans_table)
         aligned = align_sequences(aa_recs, args.aa_profile)
         data = 'aa'
+        translation=True
 
     if args.save:
         SeqIO.write(aligned, args.save, 'fasta')
@@ -415,7 +419,7 @@ def main():
     good_ids = [rec.id for rec in good]
     good_nt = [rec for rec in nt_records if rec.id in good_ids]
 
-    if translate:
+    if translation:
         if (len(check) > 0):
             print(f'{len(check)} sequences failed filtering criteria')
 
