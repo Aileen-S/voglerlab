@@ -96,10 +96,13 @@ def translate(records, trans_table=5):
 def align_sequences(records, profile=False, command=False):
     # Write temporary input file for mafft
     print('Aligning sequences with MAFFT')
-    with tempfile.NamedTemporaryFile(mode="w+", delete=False) as temp_input:
-        SeqIO.write(records, temp_input, "fasta")
-        temp_input.flush()
-        input = temp_input.name
+    os.makedirs(scratch_dir, exist_ok=True)
+    scratch_dir = "/home/ascott/scratch/tmp"
+    temp_input = tempfile.NamedTemporaryFile(mode="w+", delete=False, dir=scratch_dir, suffix=".fasta")
+    SeqIO.write(records, temp_input, "fasta")
+    temp_input.flush()
+    input = temp_input.name
+    temp_input.close()
     # Get thread count
     threads = str(os.cpu_count())
     threads = 1 if threads is None else threads
@@ -120,10 +123,9 @@ def align_sequences(records, profile=False, command=False):
     results = list(SeqIO.parse(aligned_io, "fasta"))
     for rec in results:
         rec.id = rec.id.replace('_R_', '')
-    # # Remove profile seqeunces
-    # if profile:
-    #     rec_ids = set(rec.id for rec in records)
-    #     results = [rec for rec in results if rec.id in rec_ids]
+    # Remove tmp file
+    if os.path.exists(temp_input.name):
+        os.remove(temp_input.name)
     return results
 
 
