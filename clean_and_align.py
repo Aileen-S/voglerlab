@@ -96,8 +96,8 @@ def translate(records, trans_table=5):
 def align_sequences(records, profile=False, command=False):
     # Write temporary input file for mafft
     print('Aligning sequences with MAFFT')
-    os.makedirs(scratch_dir, exist_ok=True)
     scratch_dir = "/home/ascott/scratch/tmp"
+    os.makedirs(scratch_dir, exist_ok=True)
     temp_input = tempfile.NamedTemporaryFile(mode="w+", delete=False, dir=scratch_dir, suffix=".fasta")
     SeqIO.write(records, temp_input, "fasta")
     temp_input.flush()
