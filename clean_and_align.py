@@ -216,9 +216,10 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
             match_count = sum(1 for base, cons in pairs if base == cons)
             match = match_count / len(pairs)
             sequence_similarity_consensus.append(match_count / len(pairs))
+            similarity_threshold = min(sequence_similarity_consensus) - 0.1
             if profile:
                 if 'PROFILE' not in rec.id:
-                    good.append(rec) if match_count/len(pairs) >= min(profile_similarity_consensus) else check.append(rec)
+                    good.append(rec) if match_count/len(pairs) >= similarity_threshold else check.append(rec)
         if not profile:
             # Clusering approach if no profile
             print('No profile provided; using clustering to determine acceptance threshold')
@@ -234,7 +235,7 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
     print(f'Sequence similarity to consensus ranges from {min(sequence_similarity_consensus):.3f} to {max(sequence_similarity_consensus):.3f}')
     if profile:
         print(f'Profile similarity to consensus ranges from {min(profile_similarity_consensus):.3f} to {max(profile_similarity_consensus):.3f}')
-        print(f'{len(good)} sequences passed match score threshold of {min(profile_similarity_consensus):.3f}')
+        print(f'{len(good)} sequences passed match score threshold of {(similarity_threshold):.3f}')
     else:
         print(f'{len(good)} sequences in high match cluster')
 
