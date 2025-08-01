@@ -294,7 +294,10 @@ def find_internal_stop_codons(records, data, locus, reading_frames):
             stop_codons = ['TAA', 'TAG'] if locus == 'mito' else ['TAA', 'TAG', 'TGA']
             frame = reading_frames[rec.id] - 1
             codons = [seq[i:i+3] for i in range(frame, len(seq), 3)]
-            check.append(rec) if any(stop for stop in stop_codons in codons[:-1]) else good.append(rec)
+            if any(codon in stop_codons for codon in codons[:-1]):
+                check.append(rec)
+            else:
+                good.append(rec)
         if data == 'aa':
             for rec in records:
                 check.append(rec) if '*' in seq[:-1] else good.append(rec)
