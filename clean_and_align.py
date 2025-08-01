@@ -2,6 +2,7 @@ import sys
 import os
 import tempfile
 import subprocess
+import shutil
 from io import StringIO
 import argparse, argcomplete
 from collections import Counter
@@ -44,7 +45,7 @@ def parse_args():
     parser.add_argument("-gt", "--gap_threshold", type=float, help="Maximum proportion gaps to accept. Default 0.95")
 
     # Ignore warning if no sequence passes match threshold
-    parser.add_argument("-w", "--warning", action='store_true', help="If no sequences pass initial threshold checks, proceed with cleaning anyway. Default exit script.")
+    parser.add_argument("-w", "--warning", action='store_true', help="Ignore warnings, try to proceed with script")
 
     # MAFFT options for final alignment, instead of default fast alignment
     parser.add_argument('-m', "--mafft_command", type=str, help="Custom MAFFT command")
@@ -94,38 +95,43 @@ def translate(records, trans_table=5):
 
 
 def align_sequences(records, profile=False, command=False):
-    # Write temporary input file for mafft
     print('Aligning sequences with MAFFT')
-    scratch_dir = "/home/ascott/scratch/tmp"
-    os.makedirs(scratch_dir, exist_ok=True)
-    temp_input = tempfile.NamedTemporaryFile(mode="w+", delete=False, dir=scratch_dir, suffix=".fasta")
-    SeqIO.write(records, temp_input, "fasta")
-    temp_input.flush()
-    input = temp_input.name
-    temp_input.close()
-    # Get thread count
-    threads = str(os.cpu_count())
-    threads = 1 if threads is None else threads
-    # Call MAFFT
-    if command:
-        command = command.replace('autodetect', threads).replace('input', input).replace('profile', profile).split(' ')
-    else:
-        if profile:
-            command = ['mafft', '--addfragments', input, '--retree', '1', '--maxiterate', '0', '--adjustdirection', '--anysymbol', '--thread', str(threads), profile]
+    try:
+        # Set temp directory for mafft
+        temp_dir = tempfile.mkdtemp(prefix="mafft_temp_")
+        input_file_path = os.path.join(temp_dir, "input.fasta")
+        with open(input_file_path, "w") as temp_input:
+            SeqIO.write(records, temp_input, "fasta")
+        # Get thread count
+        threads = str(os.cpu_count())
+        threads = 1 if threads is None else threads
+
+        # Call MAFFT
+        if command:
+            command = command.replace('autodetect', threads).replace('input', input_file_path).replace('profile', profile).split(' ')
         else:
-            command = ['mafft', '--retree', '1', '--maxiterate', '0', '--adjustdirection', '--anysymbol', '--thread', str(threads), input]
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0 or not result.stdout.strip():
-        print("MAFFT failed:")
-        print("stderr:", result.stderr)
+            if profile:
+                command = ['mafft', '--addfragments', input_file_path, '--retree', '1', '--maxiterate', '0', '--adjustdirection', '--anysymbol', '--thread', str(threads), profile]
+            else:
+                command = ['mafft', '--retree', '1', '--maxiterate', '0', '--adjustdirection', '--anysymbol', '--thread', str(threads), input_file_path]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0 or not result.stdout.strip():
+            print("MAFFT failed:")
+            print("stderr:", result.stderr)
+            return []
+        aligned_io = StringIO(result.stdout)
+        results = list(SeqIO.parse(aligned_io, "fasta"))
+        for rec in results:
+            rec.id = rec.id.replace('_R_', '')
+
+    except Exception as e:
+        print(f"Error: {e}")
         return []
-    aligned_io = StringIO(result.stdout)
-    results = list(SeqIO.parse(aligned_io, "fasta"))
-    for rec in results:
-        rec.id = rec.id.replace('_R_', '')
-    # Remove tmp file
-    if os.path.exists(temp_input.name):
-        os.remove(temp_input.name)
+
+    finally:
+        # Remove tmp files
+        if temp_dir and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
     return results
 
 
@@ -374,6 +380,8 @@ def main():
     ids = set(rec.id for rec in records)
     if len(ids) < len(records):
         print('WARNING: Sequences IDs not all unique. This may cause errors in filtering.\n')
+        if not args.warning:
+            sys.exit()
 
     records = remove_empty_sequences(records)
     shortest = min(len(rec.seq.replace('-', '')) for rec in records)
@@ -383,15 +391,16 @@ def main():
     print('\nFiltering seqeunces')
     # Translate and align
     if args.locus == 'rna':
-        aligned = align_sequences(records, args.nt_profile)
         data = 'nt'
         translation=False
+        aligned = align_sequences(records, args.nt_profile)
+
     else:
+        data = 'aa'
+        translation=True
         trans_table = 5 if args.locus == 'mito' else 1
         aa_recs, reading_frames = translate(records, trans_table)
         aligned = align_sequences(aa_recs, args.aa_profile)
-        data = 'aa'
-        translation=True
 
     if args.save:
         SeqIO.write(aligned, args.save, 'fasta')
@@ -399,8 +408,6 @@ def main():
     # Find outliers
     consensus_threshold = args.consensus_threshold if args.consensus_threshold else 0.7
     gap_threshold = args.gap_threshold if args.gap_threshold else 0.95
-    # match_threshold = args.match_threshold if args.match_threshold else 0.7 if args.locus == 'rna' else 0.5
-
     check, good = find_outliers(aligned, consensus_threshold, data=data, locus=args.locus)
     if good == []:
         print('WARNING: No sequences passed filtering criteria\n'
@@ -453,31 +460,34 @@ def main():
             good_add_ids = [rec.id for rec in checked_good]
             good.extend(checked_good)
             good_ids = good_ids + [rec for rec in check_nt if rec.id in good_add_ids]
-
-            # Align again, if more sequence were added to 'good' sequences
-            if checked_good != []:
-                print('\nFinal protein alignment')
-                # AA output
-                if args.mafft_command:
-                    good_aa = align_sequences(good, args.aa_profile, command=args.mafft_command)
+            if any(rec.id for rec in good if 'PROFILE' not in rec.id):
+                # Align again, if more sequence were added to 'good' sequences
+                if checked_good != []:
+                    print('\nFinal protein alignment')
+                    # AA output
+                    if args.mafft_command:
+                        good_aa = align_sequences(good, args.aa_profile, command=args.mafft_command)
+                    else:
+                        good_aa = align_sequences(good, args.aa_profile)
                 else:
-                    good_aa = align_sequences(good, args.aa_profile)
-            else:
-                good_aa = [rec for rec in good]
-            good_aa = delete_gappy_columns(good_aa, gap_threshold)
-            if args.aa_profile:
-                good_aa = trim_to_profile(good_aa)
+                    good_aa = [rec for rec in good]
+                print(len(good_aa))
+                SeqIO.write(good_aa, 'test.good.fasta', 'fasta')
+
+                good_aa = delete_gappy_columns(good_aa, gap_threshold)
+                if args.aa_profile:
+                    good_aa = trim_to_profile(good_aa)
 
         else:
             good_aa = [rec for rec in aligned]
 
-        if args.aa_output:
+        if args.aa_output and good_aa != []:
             with open(args.aa_output, 'w') as file:
                 SeqIO.write(good_aa, file, 'fasta')
                 print(f'{len(good_aa)} protein sequences with {len(good_aa[0].seq)} columns written to {args.aa_output}')
-        # NT output
-        good_ids = [rec.id for rec in good_aa if 'PROFILE' not in rec.id]
-        good_nt = [rec for rec in nt_records if rec.id in good_ids]
+            # NT output
+            good_ids = [rec.id for rec in good_aa if 'PROFILE' not in rec.id]
+            good_nt = [rec for rec in nt_records if rec.id in good_ids]
    
 
     # Align as nucleotide
@@ -499,7 +509,7 @@ def main():
     # Save sequences that did not pass filters
     if check != []:
         print('\nSaving seqeunces that did not pass filters')
-        check_ids = [rec.id for rec in check]
+        check_ids = [rec.id for rec in check if 'PROFILE' not in rec.id]
         check = [rec for rec in nt_records if rec.id in check_ids]
         check = align_sequences(check, args.nt_profile)
 
