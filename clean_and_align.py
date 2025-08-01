@@ -138,7 +138,6 @@ def align_sequences(records, profile=False, command=False):
 
 
 def find_outliers(records, consensus_threshold, data, locus, chunk=False):
-    print('Finding outliers')
     seq_list = list(records)
     for rec in seq_list:
         rec.seq = rec.seq.upper()
@@ -243,7 +242,6 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
 
 
 def find_internal_stop_codons(records, data, locus, reading_frames):
-    print('Finding internal stop codons')
     good = []
     check = []
     for rec in records:
@@ -267,7 +265,6 @@ def find_internal_stop_codons(records, data, locus, reading_frames):
 
 
 def replace_partial_codons(records, reading_frames, trans_table=5):
-    print('Searching for partial codons')
     check = []
     good = []
     x = 0
@@ -330,8 +327,6 @@ def trim_to_profile(records):
     if end < len(records[0].seq):
         for rec in records:
             rec.seq = rec.seq[:end]
-    if len(records[0].seq) < length:
-        print(f'{length - len(records[0].seq)} alignment positions removed')
     return records
 
 
@@ -444,6 +439,7 @@ def main():
             good_aa = [rec for rec in aligned]
 
         if args.aa_output and good_aa != []:
+            good_aa = [rec for rec in good_aa if 'PROFILE' not in rec.id]
             with open(args.aa_output, 'w') as file:
                 SeqIO.write(good_aa, file, 'fasta')
                 print(f'{len(good_aa)} protein sequences with {len(good_aa[0].seq)} columns written to {args.aa_output}')
