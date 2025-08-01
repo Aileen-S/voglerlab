@@ -434,8 +434,6 @@ def main():
                         good_aa = align_sequences(good, args.aa_profile)
                 else:
                     good_aa = [rec for rec in good]
-                print(len(good_aa))
-                SeqIO.write(good_aa, 'test.good.fasta', 'fasta')
 
                 good_aa = delete_gappy_columns(good_aa, gap_threshold)
                 if args.aa_profile:
