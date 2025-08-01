@@ -196,14 +196,15 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
     # Consider whole sequence at once
     else:
         # Calculate sequence variation within profile
-        profile_similarity_consensus = []
-        sequence_similarity_consensus = []
+        profile_consensus_range = []
+        sequence_consensus_range = []
         if profile == True:
             for seq in profile_seqs:
                 # Count bases matching consensus
                 pairs = [(s, c) for s, c in zip(seq, consensus)]
                 match_count = sum(1 for base, cons in pairs if base == cons)
-                profile_similarity_consensus.append(match_count / len(pairs))
+                profile_consensus_range.append(match_count / len(pairs))
+            similarity_threshold = min(profile_consensus_range) - 0.1
                  
         for rec in records:
             outlier = False
@@ -214,15 +215,14 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
             pairs = [(s, c) for s, c in zip(seq[start:end], consensus[start:end])]
             match_count = sum(1 for base, cons in pairs if base == cons)
             match = match_count / len(pairs)
-            sequence_similarity_consensus.append(match_count / len(pairs))
-            similarity_threshold = min(sequence_similarity_consensus) - 0.1
+            sequence_consensus_range.append(match)
             if profile:
                 if 'PROFILE' not in rec.id:
-                    good.append(rec) if match_count/len(pairs) >= similarity_threshold else check.append(rec)
+                    good.append(rec) if match >= similarity_threshold else check.append(rec)
         if not profile:
             # Clusering approach if no profile
             print('No profile provided; using clustering to determine acceptance threshold')
-            match_scores = np.array(sequence_similarity_consensus).reshape(-1, 1)
+            match_scores = np.array(sequence_consensus_range).reshape(-1, 1)
             gmm = GaussianMixture(n_components=2).fit(match_scores)
             labels = gmm.predict(match_scores)
             means = gmm.means_.flatten()
@@ -231,9 +231,9 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
             good = [records[i] for i in high_match_indices]
             check = [records[i] for i in range(len(records)) if i not in high_match_indices]
 
-    print(f'Sequence similarity to consensus ranges from {min(sequence_similarity_consensus):.3f} to {max(sequence_similarity_consensus):.3f}')
+    print(f'Sequence similarity to consensus ranges from {min(sequence_consensus_range):.3f} to {max(sequence_consensus_range):.3f}')
     if profile:
-        print(f'Profile similarity to consensus ranges from {min(profile_similarity_consensus):.3f} to {max(profile_similarity_consensus):.3f}')
+        print(f'Profile similarity to consensus ranges from {min(profile_consensus_range):.3f} to {max(profile_consensus_range):.3f}')
         print(f'{len(good)} sequences passed match score threshold of {(similarity_threshold):.3f}')
     else:
         print(f'{len(good)} sequences in high match cluster')
