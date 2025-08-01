@@ -56,7 +56,8 @@ def parse_args():
     argcomplete.autocomplete(parser)
     return parser.parse_args()
 
-#args = argparse.Namespace(input='test.fasta', check='check.fasta', good='good.fasta', translate=True, locus='mito', nt_profile='profiles/0_NT_profiles/COX1.fasta', aa_profile='profiles/0_AA_profiles/COX1.fasta')
+args = argparse.Namespace(input='test.fasta', check='test.check.fasta', good='test.good.fasta', locus='mito', nt_profile='/home/aileen/onedrive/treebuilding/profiles/0_NT_profiles/ATP6.fasta', aa_profile='/home/aileen/onedrive/treebuilding/profiles/0_AA_profiles/ATP6.fasta', consensus_threshold=0.7, gap_threshold=0.95)
+
 def remove_empty_sequences(records):
     output = [rec for rec in records if rec.seq.count('-') < len(rec.seq)]
     if len(output) < len(records):
@@ -335,7 +336,7 @@ def main():
     args = parse_args()
 
     # Check sequences
-    nt_records= list(SeqIO.parse(args.input, 'fasta'))
+    all_nt_records= list(SeqIO.parse(args.input, 'fasta'))
     records = list(SeqIO.parse(args.input, 'fasta'))
     print(f'Found {len(records)} sequences in {args.input}')
     ids = set(rec.id for rec in records)
@@ -386,7 +387,8 @@ def main():
         check.extend(check_stop)
 
     good_ids = [rec.id for rec in good]
-    good_nt = [rec for rec in nt_records if rec.id in good_ids]
+    check_ids = [rec.id for rec in check]
+    good_nt = [rec for rec in all_nt_records if rec.id in good_ids]
 
     if translation:
         if (len(check) > 0):
@@ -395,31 +397,30 @@ def main():
 
             # Realign 'check' sequences as nucleotide
             print('\nCleaning sequences')
-            input_ids = [rec.id for rec in nt_records]
-            check_ids = [rec.id for rec in check if rec.id in input_ids]
-            check = [rec for rec in nt_records if rec.id in check_ids]
+            check = [rec for rec in all_nt_records if rec.id in check_ids]
             check = align_sequences(check, args.nt_profile)
 
             # Remove gappy columns
             check = delete_gappy_columns(check, gap_threshold=gap_threshold)
 
             # Fill partial codons
-            check_nt = replace_partial_codons(check, reading_frames, trans_table)
+            check = replace_partial_codons(check, reading_frames, trans_table)
 
             # Align as AA again
-            aa_recs, reading_frames = translate(check_nt, trans_table)
-            if good != []:
-                for rec in good:
+            aa_recs, reading_frames = translate(check, trans_table)
+            if good != [] and args.aa_profile == False:
+                aa_profile_recs = [rec for rec in good]
+                for rec in profile_recs:
                     rec.id = 'PROFILE::' + rec.id
                     aa_recs.append(rec)
-            check = align_sequences(aa_recs, args.aa_profile)
+            check_aa = align_sequences(aa_recs, args.aa_profile)
 
             # Filter outliers again
-            check, checked_good = find_outliers(check, consensus_threshold, data='aa', locus=args.locus)
-            good_add_ids = [rec.id for rec in checked_good]
+            check_aa, checked_good = find_outliers(check_aa, consensus_threshold, data='aa', locus=args.locus)
             good.extend(checked_good)
-            good_ids = good_ids + [rec for rec in check_nt if rec.id in good_add_ids]
-            if any(rec.id for rec in good if 'PROFILE' not in rec.id):
+
+            good_ids = [rec.id for rec in good]
+            if any('PROFILE' not in rec.id for rec in good):
                 # Align again, if more sequence were added to 'good' sequences
                 if checked_good != []:
                     print('\nFinal protein alignment')
@@ -428,12 +429,15 @@ def main():
                         good_aa = align_sequences(good, args.aa_profile, command=args.mafft_command)
                     else:
                         good_aa = align_sequences(good, args.aa_profile)
+
                 else:
                     good_aa = [rec for rec in good]
 
                 good_aa = delete_gappy_columns(good_aa, gap_threshold)
+
                 if args.aa_profile:
                     good_aa = trim_to_profile(good_aa)
+                    print(f'3 {len(good_aa)} sequences in good aa\n')
 
         else:
             good_aa = [rec for rec in aligned]
@@ -444,8 +448,9 @@ def main():
                 SeqIO.write(good_aa, file, 'fasta')
                 print(f'{len(good_aa)} protein sequences with {len(good_aa[0].seq)} columns written to {args.aa_output}')
             # NT output
-            good_ids = [rec.id for rec in good_aa if 'PROFILE' not in rec.id]
-            good_nt = [rec for rec in nt_records if rec.id in good_ids]
+            good_ids = [rec.id for rec in good_aa]
+            good_nt = [rec for rec in all_nt_records if rec.id in good_ids]
+
    
 
     # Align as nucleotide
@@ -468,7 +473,7 @@ def main():
     if check != []:
         print('\nSaving seqeunces that did not pass filters')
         good_ids = [rec.id for rec in good_nt]
-        check = [rec for rec in nt_records if rec.id not in good_ids]
+        check = [rec for rec in all_nt_records if rec.id not in good_ids]
         check = align_sequences(check, args.nt_profile)
         with open(args.check, 'w') as file:
             SeqIO.write(check, file, 'fasta')
