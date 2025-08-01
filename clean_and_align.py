@@ -240,48 +240,6 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
 
     return check, good
 
-# def gap_ratio_filter(records, consensus_threshold, match_thresold, data):
-#     # Find sequneces with atypical gap ratio
-#     print('Finding atypical gaps')
-#     # Check for profile
-#     if any('PROFILE' in rec.id for rec in records):
-#         profile_seqs = [rec for rec in records if 'PROFILE' in rec.id]
-#     else:
-#         profile_seqs = [rec for rec in records]
-#     # Calculate gap consensus
-#     gap_counts = [sum(1 for seq in profile_seqs if seq[i] == '-') for i in range(len(records[0]))]
-#     gap_freq = [count / len(records) for count in gap_counts]
-#     gap_consensus = ''.join(['-' if i >= consensus_threshold else 'N' for i in gap_freq ])
-#     gap_count_consensus = sum(1 for i in gap_freq if i >= consensus_threshold)
-#     gap_ratio = gap_count_consensus / len(gap_freq)
-    
-#     # Find outlier sequences
-#     good = []
-#     check = []
-#     uncertain = 'N' if data == 'nt' else 'X'
-#     for rec in records:
-#         if 'PROFILE' in rec.id:
-#             good.append(rec)
-#             continue
-#         # Find sequence start and end
-#         seq = rec.seq.replace(uncertain, '-')
-#         start = next(i for i, c in enumerate(seq) if c != '-')
-#         end = len(seq) - next(i for i, c in enumerate(reversed(seq)) if c != '-')
-#         seq = seq[start:end]
-#         con = gap_consensus[start:end]
-#         # Match gaps to consensus
-#         gap_matches = sum(1 for a, b in zip(seq, con) if a == '-' and b == '-')
-#         char_matches = sum(1 for a, b in zip(seq, con) if a != '-' and b != '-')
-#         match_ratio = (gap_matches + char_matches )/ (end - start)
-
-#         if match_ratio >= match_thresold:
-#             good.append(rec)
-#         else:
-#             check.append(rec)
-
-#     print(f'{len(good)} sequences passed gap ratio filter')
-#     return check, good
-
 
 def find_internal_stop_codons(records, data, locus, reading_frames):
     print('Finding internal stop codons')
@@ -335,8 +293,8 @@ def replace_partial_codons(records, reading_frames, trans_table=5):
 
 def delete_gappy_columns(records, gap_threshold):
     # Get gap percentage for each position in alignment
-    print('Finding gappy columns')
     gap_threshold = gap_threshold if gap_threshold is not None else 1
+    print(f'Deletiing columns >= {gap_threshold * 100:.0f}% gaps')
     gap_counts = [sum(1 for rec in records if rec.seq[i] == '-') for i in range(len(records[0]))]
     gap_freq = [count / len(records) for count in gap_counts]
     keep = [i for i in range(len(gap_freq)) if gap_freq[i] < gap_threshold]
@@ -348,7 +306,7 @@ def delete_gappy_columns(records, gap_threshold):
         # Remove gappy columns
         rec.seq = Seq(''.join(rec.seq[i] for i in keep))
         good.append(rec)
-    print(f'{len(records[0].seq) - len(keep)} gappy alignment positions removed')
+    print(f'{len(records[0].seq) - len(keep)} columns removed')
     return good
 
 
@@ -440,16 +398,15 @@ def main():
 
 
             # Realign 'check' sequences as nucleotide
-            print('\nRealigning sequences')
+            print('\nCleaning sequences')
             input_ids = [rec.id for rec in nt_records]
             check_ids = [rec.id for rec in check if rec.id in input_ids]
             check = [rec for rec in nt_records if rec.id in check_ids]
             check = align_sequences(check, args.nt_profile)
 
             # Remove gappy columns
-            check = delete_gappy_columns(check, gap_threshold=args.gap_threshold)
+            check = delete_gappy_columns(check, gap_threshold=gap_threshold)
 
-            print('\nCleaning sequences')
             # Fill partial codons
             check_nt = replace_partial_codons(check, reading_frames, trans_table)
 
@@ -505,7 +462,7 @@ def main():
         else:
             good_nt = align_sequences(good_nt, args.nt_profile)
 
-        good_nt = delete_gappy_columns(good_nt, gap_threshold=args.gap_threshold)
+        good_nt = delete_gappy_columns(good_nt, gap_threshold=gap_threshold)
         if args.nt_profile:
             good_nt = trim_to_profile(good_nt)
         with open(args.good, 'w') as file:
