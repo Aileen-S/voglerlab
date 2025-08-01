@@ -98,7 +98,9 @@ def align_sequences(records, profile=False, command=False):
     print('Aligning sequences with MAFFT')
     try:
         # Set temp directory for mafft
-        temp_dir = tempfile.mkdtemp(prefix="mafft_temp_")
+        temp_scratch_dir = os.path.expanduser("~/scratch/tmp")
+        os.makedirs(temp_scratch_dir, exist_ok=True)
+        temp_dir = tempfile.mkdtemp(prefix="mafft_temp_", dir=temp_scratch_dir)
         input_file_path = os.path.join(temp_dir, "input.fasta")
         with open(input_file_path, "w") as temp_input:
             SeqIO.write(records, temp_input, "fasta")
