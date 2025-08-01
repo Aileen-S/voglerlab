@@ -288,6 +288,7 @@ def find_internal_stop_codons(records, data, locus, reading_frames):
     good = []
     check = []
     for rec in records:
+        found_stop = False
         end = len(rec.seq) - next(i for i, c in enumerate(reversed(rec.seq)) if c != '-')
         seq = rec.seq[:end]
         if data == 'nt':
@@ -296,9 +297,10 @@ def find_internal_stop_codons(records, data, locus, reading_frames):
             codons = [seq[i:i+3] for i in range(frame, len(seq), 3)]
             if any(codon in stop_codons for codon in codons[:-1]):
                 check.append(rec)
-            else:
-                good.append(rec)
-        if data == 'aa':
+                found_stop = True
+        if found_stop == False:
+            good.append(rec)
+        elif data == 'aa':
             for rec in records:
                 check.append(rec) if '*' in seq[:-1] else good.append(rec)
     print(f'{len(good)} sequences without internal stop codons')
@@ -426,7 +428,6 @@ def main():
     # Skip stop codon filter for RNA
     if args.locus != 'rna':
         # Stop codon filter
-
         check_stop, good = find_internal_stop_codons(good, data=data, locus=args.locus, reading_frames=reading_frames)
         check.extend(check_stop)
 
