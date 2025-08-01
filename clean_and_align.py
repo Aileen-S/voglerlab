@@ -205,7 +205,7 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
                 pairs = [(s, c) for s, c in zip(seq, consensus)]
                 match_count = sum(1 for base, cons in pairs if base == cons)
                 profile_consensus_range.append(match_count / len(pairs))
-            similarity_threshold = min(profile_consensus_range) - 0.1
+            similarity_threshold = min(profile_consensus_range)# - 0.1 if min(profile_consensus_range) >= 0.6 else 0.5
                  
         for rec in records:
             outlier = False
@@ -437,7 +437,6 @@ def main():
 
                 if args.aa_profile:
                     good_aa = trim_to_profile(good_aa)
-                    print(f'3 {len(good_aa)} sequences in good aa\n')
 
         else:
             good_aa = [rec for rec in aligned]
