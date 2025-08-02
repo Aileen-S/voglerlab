@@ -3,6 +3,7 @@ import os
 import tempfile
 import subprocess
 import shutil
+import copy
 from io import StringIO
 import argparse, argcomplete
 from collections import Counter
@@ -56,7 +57,8 @@ def parse_args():
     argcomplete.autocomplete(parser)
     return parser.parse_args()
 
-args = argparse.Namespace(input='test.fasta', check='test.check.fasta', good='test.good.fasta', locus='mito', nt_profile='/home/aileen/onedrive/treebuilding/profiles/0_NT_profiles/ATP6.fasta', aa_profile='/home/aileen/onedrive/treebuilding/profiles/0_AA_profiles/ATP6.fasta', consensus_threshold=0.7, gap_threshold=0.95)
+# args = argparse.Namespace(input='test.fasta', check='test.check.fasta', good='test.good.fasta', locus='mito', nt_profile='/home/aileen/onedrive/treebuilding/profiles/0_NT_profiles/ATP6.fasta', aa_profile='/home/aileen/onedrive/treebuilding/profiles/0_AA_profiles/ATP6.fasta', consensus_threshold=0.7, gap_threshold=0.95)
+# args = argparse.Namespace(input='test.fasta', check='test.check.fasta', good='test.good.fasta', locus='mito', nt_profile=False, aa_profile=False, consensus_threshold=0.7, gap_threshold=0.95)
 
 def remove_empty_sequences(records):
     output = [rec for rec in records if rec.seq.count('-') < len(rec.seq)]
@@ -338,8 +340,8 @@ def main():
     args = parse_args()
 
     # Check sequences
-    all_nt_records= list(SeqIO.parse(args.input, 'fasta'))
     records = list(SeqIO.parse(args.input, 'fasta'))
+    all_nt_records = [copy.deepcopy(rec) for rec in records]
     print(f'Found {len(records)} sequences in {args.input}')
     ids = set(rec.id for rec in records)
     if len(ids) < len(records):
@@ -408,15 +410,17 @@ def main():
 
             # Fill partial codons
             check = replace_partial_codons(check, reading_frames, trans_table)
+            check_nt = [copy.deepcopy(rec) for rec in check]
 
             # Align as AA again
-            aa_recs, reading_frames = translate(check, trans_table)
-            if good != [] and args.aa_profile == False:
-                aa_profile_recs = [rec for rec in good]
+            check_aa, reading_frames = translate(check_nt, trans_table)
+            
+            if good != [] and not args.aa_profile:
+                aa_profile_recs = [copy.deepcopy(rec) for rec in good]
                 for rec in aa_profile_recs:
                     rec.id = 'PROFILE::' + rec.id
-                    aa_recs.append(rec)
-            check_aa = align_sequences(aa_recs, args.aa_profile)
+                check_aa = check_aa + aa_profile_recs
+            check_aa = align_sequences(check_aa, args.aa_profile)
 
             # Filter outliers again
             check_aa, good_add_aa = find_outliers(check_aa, consensus_threshold, data='aa', locus=args.locus)
