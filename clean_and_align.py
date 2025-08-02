@@ -211,7 +211,9 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
             outlier = False
             seq = str(rec.seq)
             # Count bases matching consensus
-            start = next(i for i, c in enumerate(seq) if c != '-')
+            start = next((i for i, c in enumerate(seq) if c != '-'), None)
+            if start == None:
+                continue
             end = len(seq) - next(i for i, c in enumerate(reversed(seq)) if c != '-')
             pairs = [(s, c) for s, c in zip(seq[start:end], consensus[start:end])]
             match_count = sum(1 for base, cons in pairs if base == cons)
@@ -242,7 +244,7 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
     return check, good
 
 
-def find_internal_stop_codons(records, data, locus, reading_frames):
+def find_internal_stop_codons(records, data, locus, reading_frames=False):
     good = []
     check = []
     for rec in records:
@@ -402,6 +404,7 @@ def main():
 
             # Remove gappy columns
             check = delete_gappy_columns(check, gap_threshold=gap_threshold)
+            check = remove_empty_sequences(check)
 
             # Fill partial codons
             check = replace_partial_codons(check, reading_frames, trans_table)
@@ -410,19 +413,21 @@ def main():
             aa_recs, reading_frames = translate(check, trans_table)
             if good != [] and args.aa_profile == False:
                 aa_profile_recs = [rec for rec in good]
-                for rec in profile_recs:
+                for rec in aa_profile_recs:
                     rec.id = 'PROFILE::' + rec.id
                     aa_recs.append(rec)
             check_aa = align_sequences(aa_recs, args.aa_profile)
 
             # Filter outliers again
-            check_aa, checked_good = find_outliers(check_aa, consensus_threshold, data='aa', locus=args.locus)
-            good.extend(checked_good)
+            check_aa, good_add_aa = find_outliers(check_aa, consensus_threshold, data='aa', locus=args.locus)
+            check_aa_stop, good_add_aa = find_internal_stop_codons(good_add_aa, data='aa', locus=args.locus)
+            good.extend(good_add_aa)
+            check_aa.extend(check_aa_stop)
 
             good_ids = [rec.id for rec in good]
             if any('PROFILE' not in rec.id for rec in good):
                 # Align again, if more sequence were added to 'good' sequences
-                if checked_good != []:
+                if good_add_aa != []:
                     print('\nFinal protein alignment')
                     # AA output
                     if args.mafft_command:
@@ -434,6 +439,7 @@ def main():
                     good_aa = [rec for rec in good]
 
                 good_aa = delete_gappy_columns(good_aa, gap_threshold)
+                good_aa = remove_empty_sequences(good_aa)
 
                 if args.aa_profile:
                     good_aa = trim_to_profile(good_aa)
@@ -446,14 +452,14 @@ def main():
             with open(args.aa_output, 'w') as file:
                 SeqIO.write(good_aa, file, 'fasta')
                 print(f'{len(good_aa)} protein sequences with {len(good_aa[0].seq)} columns written to {args.aa_output}')
-            # NT output
-            good_ids = [rec.id for rec in good_aa]
-            good_nt = [rec for rec in all_nt_records if rec.id in good_ids]
 
-   
+            # Get good NT records
+            good_add_ids = [rec.id for rec in good_add_aa]
+            good_add_nt = [rec for rec in check if rec.id in good_add_ids]
+            good_nt = good_nt + good_add_nt
+
 
     # Align as nucleotide
-
     if good_nt != []:
         print('\nFinal nucleotide alignment:')
         if args.mafft_command:
@@ -462,6 +468,7 @@ def main():
             good_nt = align_sequences(good_nt, args.nt_profile)
 
         good_nt = delete_gappy_columns(good_nt, gap_threshold=gap_threshold)
+        good_nt = remove_empty_sequences(good_nt)
         if args.nt_profile:
             good_nt = trim_to_profile(good_nt)
         with open(args.good, 'w') as file:
