@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 
-import argparse, argcomplete
+import argparse
 import csv
 from Bio import Entrez
 from Bio import SeqIO
@@ -70,10 +71,6 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
     return gbids
 
 # Accessions to GBIDs
-from Bio import Entrez
-import time
-
-Entrez.email = "your.email@example.com"  # Remember to set this!
 
 def accs_to_gbids(ids, chunk_size=500, retries=10, delay=30):
     total = len(ids)
@@ -235,8 +232,6 @@ parser.add_argument("-l", "--longest", action='store_true', help="Save only long
 # Optional output of genbank format file as well as fasta
 parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results")
 
-
-argcomplete.autocomplete(parser)
 args = parser.parse_args()         # Process input args from command line
 
 
@@ -310,6 +305,7 @@ else:
 
 # Remove 'exlude' GBIDs from search list
 exc_accs = []
+exc = ''
 if args.exclude:
     exclude = open(args.exclude)
     lines = exclude.readlines()

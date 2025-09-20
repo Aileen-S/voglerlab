@@ -38,12 +38,10 @@ def parse_args():
     parser.add_argument("-np", "--nt_profile", type=str, help="Nucleotide profile fasta")
     parser.add_argument("-ap", "--aa_profile", type=str, help="Amino acid profile fasta, if using translation option")
 
-    # Specify threshold for consensus seqeunce
+    # Specify thresholds
     parser.add_argument("-ct", "--consensus_threshold", type=float, help="Minimum proportion of characters to accept as consensus character. Default 0.7")
-    # parser.add_argument("-mt", "--match_threshold", type=float, help="Mimumum similarity to consensus"
-    #                                                                  "For coding sequences: acts on chunks of 20bp, default 0.5"
-    #                                                                  "For RNA, works on whole sequence, default 0.7")
     parser.add_argument("-gt", "--gap_threshold", type=float, help="Maximum proportion gaps to accept. Default 0.95")
+    parser.add_argument("-ml", "--min_length", type=float, help="Minimum sequence length. Default 100 bps")
 
     # Ignore warning if no sequence passes match threshold
     parser.add_argument("-w", "--warning", action='store_true', help="Ignore warnings, try to proceed with script")
@@ -353,6 +351,9 @@ def main():
     shortest = min(len(rec.seq.replace('-', '')) for rec in records)
     longest = max(len(rec.seq.replace('-', '')) for rec in records)
     print(f'Sequence length ranges from {shortest} to {longest} characters')
+    min_lenth = int(args.min_length) if args.min_length else 100
+    records = [rec for rec in records if len(rec.seq.replace('-', '')) >= min_length]
+    print(f'Removed sequences shorter than {min_length} - {len(records)} remaining')
 
     print('\nFiltering seqeunces')
     # Translate and align
@@ -422,8 +423,8 @@ def main():
                 check_aa = check_aa + aa_profile_recs
             check_aa = align_sequences(check_aa, args.aa_profile)
 
-            # Filter outliers again
-            check_aa, good_add_aa = find_outliers(check_aa, consensus_threshold, data='aa', locus=args.locus)
+            # Filter outliers again, lower consensus threshold this time
+            check_aa, good_add_aa = find_outliers(check_aa, consensus_threshold = 0.5, data='aa', locus=args.locus)
             check_aa_stop, good_add_aa = find_internal_stop_codons(good_add_aa, data='aa', locus=args.locus)
             good.extend(good_add_aa)
             check_aa.extend(check_aa_stop)
