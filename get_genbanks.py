@@ -305,7 +305,7 @@ else:
 
 # Remove 'exlude' GBIDs from search list
 exc_accs = []
-exc = ''
+exc = []
 if args.exclude:
     exclude = open(args.exclude)
     lines = exclude.readlines()
@@ -334,6 +334,8 @@ if args.save:
     results = search_genbank(gbids, save=True, output=args.save, exclude=exc)
 else:
     results = search_genbank(gbids, exclude=exc)
+
+accessions = []
 for rec in results:
     if args.taxon:
         if args.taxon not in rec.annotations["taxonomy"]:
@@ -400,6 +402,8 @@ for rec in results:
             x += 1
     if g == 0:
         nohits.append(rec.name)
+    else:
+        accessions.append(rec.name)
 
 
 
@@ -417,7 +421,7 @@ if args.longest:
 
 
     # Dict for longest sequences, key is gene stdname, value is list of records
-    saved_gbids = []
+    accessions = []
     saved_recs = {}
     for stdname, tax in seqs.items():
         for tax, records in tax.items():
@@ -433,7 +437,6 @@ if args.longest:
 
 else:
     saved_recs = seqs
-    saved_gbids = gbids
 
 # for gene, records in saved_recs.items():
 #     print(f"{len(records)} records found for {gene}")
@@ -470,7 +473,7 @@ with open("metadata.csv", "w") as file:
         ["ncbi_taxid", "genbank_accession", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
         "subfamily", "tribe", "species", "country", "latitude", "longitude", "ref_authoer", "ref_title", "ref_journal"])
     for gbid, rec in meta.items():
-        if gbid in gbids:
+        if gbid in accessions:
             if gbid not in added:
                 added.append(rec['gbid'])
                 row = rec['row']
