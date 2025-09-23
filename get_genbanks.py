@@ -39,37 +39,81 @@ def set_feat_name(feat, name):
 #     delay (optional): Delay in seconds between retries (default: 30).
 # Yields:
 #     list: List of GenBank IDs from the search.
+# def get_gbids(query, chunk=10000, retries=10, delay=30):
+#     gbids = set()
+#     # Define search term 
+#     terms = [f"txid{txid}" for txid in query] if isinstance(query, list) else [query]
+#     if isinstance(query, list):
+#         print('Retriving GenBank record IDs for input taxon ID list')
+#     else:
+#         print(f'Retriving GenBank record IDs for {query}')
+#     for term in terms:
+#         for attempt in range(retries):
+#             try:
+#                 # Get record count for search term
+#                 searchhand = Entrez.esearch(db="nucleotide", term=term, retmax=0)
+#                 searchrec = Entrez.read(searchhand)
+#                 count = int(searchrec["Count"])
+#                 # Get GBIDs
+#                 for start in range(0, count, chunk):
+#                     searchhand = Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk, idtype="acc")
+#                     searchrec = Entrez.read(searchhand)
+#                     gbids.update(searchrec['IdList'])
+#                     time.sleep(1)
+#             # If HTTP error, pause and try again
+#             except Entrez.HTTPError:
+#                 print(f"HTTP Error: retrying in {delay} seconds")
+#                 time.sleep(delay)
+#     if gbids == []:
+#         print(f"Failed to retrieve records")
+#         return None
+#     print(f'Found {len(gbids)} GenBank IDs')
+#     gbids = [id.split('.')[0] for id in gbids]
+#     return set(gbids)
+
 def get_gbids(query, chunk=10000, retries=10, delay=30):
     gbids = set()
-    # Define search term 
     terms = [f"txid{txid}" for txid in query] if isinstance(query, list) else [query]
+    
     if isinstance(query, list):
-        print('Retriving GenBank record IDs for input taxon ID list')
+        print('Retrieving GenBank record IDs for input taxon ID list')
     else:
-        print(f'Retriving GenBank record IDs for {query}')
+        print(f'Retrieving GenBank record IDs for {query}')
+
     for term in terms:
         for attempt in range(retries):
             try:
-                # Get record count for search term
-                searchhand = Entrez.esearch(db="nucleotide", term=term, retmax=0)
-                searchrec = Entrez.read(searchhand)
-                count = int(searchrec["Count"])
-                # Get GBIDs
+                # Search for records
+                with Entrez.esearch(db="nucleotide", term=term, retmax=0, usehistory="y") as search_handle:
+                    search_record = Entrez.read(search_handle)
+                count = int(search_record["Count"])
+                web_env = search_record["WebEnv"]
+                query_key = search_record["QueryKey"]
+
+                # Fetch record IDs in chunks
                 for start in range(0, count, chunk):
-                    searchhand = Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk, idtype="acc")
-                    searchrec = Entrez.read(searchhand)
-                    gbids.update(searchrec['IdList'])
+                    with Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk, idtype="acc", webenv=web_env, query_key=query_key) as fetch_handle:
+                        fetch_record = Entrez.read(fetch_handle)
+                    gbids.update(fetch_record['IdList'])
                     time.sleep(1)
-            # If HTTP error, pause and try again
-            except Entrez.HTTPError:
-                print(f"HTTP Error: retrying in {delay} seconds")
+                break
+            
+            except (Entrez.HTTPError, RuntimeError) as e:
+                print(f"Error for {term} on attempt {attempt + 1}: {e}")
+                print(f"Retrying in {delay} seconds...")
                 time.sleep(delay)
-    if gbids == []:
-        print(f"Failed to retrieve records")
+        else:
+            print(f"Failed to retrieve records for {term} after {retries} attempts.")
+            return None
+
+    if not gbids:
+        print("Failed to retrieve any records.")
         return None
-    print(f'Found {len(gbids)} GenBank IDs')
-    gbids = [id.split('.')[0] for id in gbids]
-    return set(gbids)
+
+    print(f'Found {len(gbids)} total GenBank IDs.')
+    gbids = {id.split('.')[0] for id in gbids}
+
+    return gbids
 
 
 # Search GenBank with ID list
