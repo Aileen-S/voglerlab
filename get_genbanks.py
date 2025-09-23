@@ -56,9 +56,10 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
                 count = int(searchrec["Count"])
                 # Get GBIDs
                 for start in range(0, count, chunk):
-                    searchhand = Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk)
+                    searchhand = Entrez.esearch(db="nucleotide", term=term, retstart=start, retmax=chunk, idtype="acc")
                     searchrec = Entrez.read(searchhand)
                     gbids.update(searchrec['IdList'])
+                    time.sleep(1)
             # If HTTP error, pause and try again
             except Entrez.HTTPError:
                 print(f"HTTP Error: retrying in {delay} seconds")
@@ -67,31 +68,8 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
         print(f"Failed to retrieve records")
         return None
     print(f'Found {len(gbids)} GenBank IDs')
-    gbids = list(gbids)
-    return gbids
-
-# Accessions to GBIDs
-
-def accs_to_gbids(ids, chunk_size=500, retries=10, delay=30):
-    total = len(ids)
-    all_ids = []
-    for i in range(0, total, chunk_size):
-        chunk = ids[i:i + chunk_size]
-        for attempt in range(retries):
-            try:
-                term = " OR ".join(chunk)
-                handle = Entrez.esearch(db="nucleotide", term=term)
-                record = Entrez.read(handle)
-                all_ids.extend(record["IdList"])
-                break  # successful attempt
-            except Entrez.HTTPError:
-                print(f"HTTP error for chunk {i}-{i+chunk_size}; retrying in {delay}s")
-                time.sleep(delay)
-        else:
-            print(f"Failed to retrieve GBIDs {i}-{i+chunk_size}")
-
-    return all_ids
-
+    gbids = [id.split('.')[0] for id in gbids]
+    return set(gbids)
 
 
 # Search GenBank with ID list
@@ -124,7 +102,7 @@ def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output
                         except HTTPException:
                             print(f"Incompete read error with record {record.name}")
                     break # Stop addition retries if successful
-            except Entrez.HTTPError:
+            except (Entrez.HTTPError, RuntimeError) as e:
                 print("HTTP error fetching records; retrying in 20 seconds")
                 time.sleep(delay)
         else:
@@ -304,20 +282,15 @@ else:
         #print(f"Found {len(gbids)} records for {args.taxon}")
 
 # Remove 'exlude' GBIDs from search list
-exc_accs = []
-exc = []
-if args.exclude:
-    exclude = open(args.exclude)
-    lines = exclude.readlines()
-    for line in lines:
-        acc = line.strip()
-        exc_accs.append(acc)
-    print(f'{len(exc_accs)} IDs found in {args.exclude} with be excluded from search results')
 
-    # Convert to from accessions to GBIDs
-    exc = accs_to_gbids(exc_accs)
-    filtered = [id for id in gbids if id not in exc]
-    gbids = filtered
+if args.exclude:
+    exc_accs = set()
+    with open(args.exclude, 'r') as exclude_file:
+        for line in exclude_file:
+            exc_accs.add(line.strip())
+    print(f'{len(exc_accs)} IDs found in {args.exclude} will be excluded from search results')
+
+    gbids = gbids - exc_accs
     print(f'{len(gbids)} IDs remaining after exclusions removed')
 
 # Search through GBIDs
@@ -330,10 +303,11 @@ unrec_genes = {}
 unrec_species = []
 x = 0  # Count taxids
 
+gbids = list(gbids)
 if args.save:
-    results = search_genbank(gbids, save=True, output=args.save, exclude=exc)
+    results = search_genbank(gbids, save=True, output=args.save)
 else:
-    results = search_genbank(gbids, exclude=exc)
+    results = search_genbank(gbids)
 
 accessions = []
 for rec in results:
