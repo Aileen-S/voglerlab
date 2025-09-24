@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 import os
 import tempfile
@@ -351,9 +353,9 @@ def main():
     shortest = min(len(rec.seq.replace('-', '')) for rec in records)
     longest = max(len(rec.seq.replace('-', '')) for rec in records)
     print(f'Sequence length ranges from {shortest} to {longest} characters')
-    min_lenth = int(args.min_length) if args.min_length else 100
+    min_length = int(args.min_length) if args.min_length else 100
     records = [rec for rec in records if len(rec.seq.replace('-', '')) >= min_length]
-    print(f'Removed sequences shorter than {min_length} - {len(records)} remaining')
+    print(f'Removed {len(all_nt_records) - len(records)} sequences shorter than {min_length} bps: {len(records)}sequences remaining')
 
     print('\nFiltering seqeunces')
     # Translate and align
