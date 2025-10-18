@@ -99,8 +99,7 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
                 break
             
             except (Entrez.HTTPError, RuntimeError) as e:
-                print(f"Error for {term} on attempt {attempt + 1}: {e}")
-                print(f"Retrying in {delay} seconds...")
+                print(f"Error for {term} on attempt {attempt + 1}: {e} Retrying in {delay} seconds...")
                 time.sleep(delay)
         else:
             print(f"Failed to retrieve records for {term} after {retries} attempts.")
@@ -334,7 +333,7 @@ if args.exclude:
             exc_accs.add(line.strip())
     print(f'{len(exc_accs)} IDs found in {args.exclude} will be excluded from search results')
 
-    gbids = gbids - exc_accs
+    gbids = set(gbids) - exc_accs
     print(f'{len(gbids)} IDs remaining after exclusions removed')
 
 # Search through GBIDs
