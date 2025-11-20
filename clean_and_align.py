@@ -18,6 +18,7 @@ from Bio.Align import MultipleSeqAlignment
 from Bio.motifs import Motif
 from sklearn.mixture import GaussianMixture
 import numpy as np
+import shlex
 
 
 def parse_args():
@@ -113,7 +114,8 @@ def align_sequences(records, profile=False, command=False):
 
         # Call MAFFT
         if command:
-            command = command.replace('autodetect', threads).replace('input', input_file_path).replace('profile', profile).split(' ')
+            command = command.replace('autodetect', threads).replace('input', input_file_path).replace('profile', profile)#.split(' ')
+            command = shlex.split(command)
         else:
             if profile:
                 command = ['mafft', '--addfragments', input_file_path, '--retree', '1', '--maxiterate', '0', '--adjustdirection', '--anysymbol', '--thread', str(threads), profile]
@@ -355,7 +357,7 @@ def main():
     print(f'Sequence length ranges from {shortest} to {longest} characters')
     min_length = int(args.min_length) if args.min_length else 100
     records = [rec for rec in records if len(rec.seq.replace('-', '')) >= min_length]
-    print(f'Removed {len(all_nt_records) - len(records)} sequences shorter than {min_length} bps: {len(records)}sequences remaining')
+    print(f'Removed {len(all_nt_records) - len(records)} sequences shorter than {min_length} bps: {len(records)} sequences remaining')
 
     print('\nFiltering seqeunces')
     # Translate and align
