@@ -100,16 +100,16 @@ def set_search_parameters(args):
         for line in lines:
             acc = line.strip()
             gbids.append(acc)
-        print(f'{len(gbids)} IDs found in {args.file}')
+        print(f'{len(gbids)} IDs found in {args.id_list}')
 
     elif args.ref  == 'txid':
         taxids = []
-        file = open(args.file)
+        file = open(args.id_list)
         lines = file.readlines()
         for line in lines:
             taxid = line.strip()
             taxids.append(taxid)
-        print(f'{len(taxids)} IDs found in {args.file}')
+        print(f'{len(taxids)} IDs found in {args.id_list}')
         gbids = get_gbids(taxids)
 
     if args.taxon:
@@ -370,6 +370,8 @@ parser.add_argument("-t", "--taxon", type=str, help="Taxon of interest")
 parser.add_argument('-id', '--id_list', type=str, help="Input file with accession or taxon ID list")
 parser.add_argument('-r', '--ref', choices=['txid', 'gbid'], help="If using --id_list option, specify accessions or taxon IDs.")
 parser.add_argument("-e", "--email", type=str, help="Your email registered with NCBI")
+parser.add_argument("-c", "--csv", type=str, help="Save metadata as csv file - provide file path")
+
 
 # Filtering options
 parser.add_argument("-x", "--exclude", type=str, help="Input file with list of accession to skip (will not search or save these records)")
@@ -379,7 +381,7 @@ parser.add_argument("-l", "--longest", action='store_true', help="Save only long
 
 # Output options
 # Optional output of genbank format file as well as fasta
-parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results")
+parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results - provide file path")
 
 args = parser.parse_args()         # Process input args from command line
 
@@ -407,7 +409,7 @@ def main():
 
     if not args.input:
         Entrez.email = args.email if args.email else None
-        gbids <- set_search_parameters(args)
+        gbids = set_search_parameters(args)
         if args.save:
             results = search_genbank(gbids, save=True, output=args.save)
         else:
@@ -446,21 +448,21 @@ def main():
                     print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
         print(f'{x} records written to {gene}.fasta')
 
-
-    # Write CSV metadata file
-    added = []
-    with open("metadata.csv", "w") as file:
-        writer = csv.writer(file)
-        writer.writerow(
-            ["ncbi_taxid", "genbank_accession", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
-            "subfamily", "tribe", "species", "country", "latitude", "longitude", "ref_authoer", "ref_title", "ref_journal"])
-        for gbid, rec in meta.items():
-            if gbid in accessions:
-                if gbid not in added:
-                    added.append(rec['gbid'])
-                    row = rec['row']
-                writer.writerow(row)
-        print("Metadata saved to metadata.csv")
+    if args.csv:
+        # Write CSV metadata file
+        added = []
+        with open(args.csv, "w") as file:
+            writer = csv.writer(file)
+            writer.writerow(
+                ["ncbi_taxid", "genbank_accession", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
+                "subfamily", "tribe", "species", "country", "latitude", "longitude", "ref_authoer", "ref_title", "ref_journal"])
+            for gbid, rec in meta.items():
+                if gbid in accessions:
+                    if gbid not in added:
+                        added.append(rec['gbid'])
+                        row = rec['row']
+                    writer.writerow(row)
+            print("Metadata saved to metadata.csv")
 
 
     if args.id_list:
