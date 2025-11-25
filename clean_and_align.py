@@ -7,7 +7,7 @@ import subprocess
 import shutil
 import copy
 from io import StringIO
-import argparse, argcomplete
+import argparse
 from collections import Counter
 from Bio import SeqIO
 from Bio import AlignIO
@@ -51,15 +51,13 @@ def parse_args():
 
     # MAFFT options for final alignment, instead of default fast alignment
     parser.add_argument('-m', "--mafft_command", type=str, help="Custom MAFFT command")
-    # Default with profile: 'mafft --addfragments input --retree 1 --maxiterate 0 --adjustdirection --anysymbol --thread autodetect profile
-    # Default without profile: 'mafft --retree 1 --maxiterate 0 --adjustdirection --anysymbol --thread autodetect input'
+    # Default with profile: 'mafft --addfragments input --retree 1 --maxiterate 0 --nofft --parttree --adjustdirection --anysymbol --thread autodetect profile
+    # Default without profile: 'mafft --retree 1 --maxiterate 0 --nofft --parttree --adjustdirection --anysymbol --thread autodetect input'
     # Example custom input: 'mafft --addfragments input --globalpair --maxiterate 1000 --adjustdirection --anysymbol --thread autodetect profile'
 
-    argcomplete.autocomplete(parser)
     return parser.parse_args()
 
-# args = argparse.Namespace(input='test.fasta', check='test.check.fasta', good='test.good.fasta', locus='mito', nt_profile='/home/aileen/onedrive/treebuilding/profiles/0_NT_profiles/ATP6.fasta', aa_profile='/home/aileen/onedrive/treebuilding/profiles/0_AA_profiles/ATP6.fasta', consensus_threshold=0.7, gap_threshold=0.95)
-# args = argparse.Namespace(input='test.fasta', check='test.check.fasta', good='test.good.fasta', locus='mito', nt_profile=False, aa_profile=False, consensus_threshold=0.7, gap_threshold=0.95)
+# args = argparse.Namespace(input='EF1A.fasta', check='test.check.fasta', good='test.good.fasta', locus='mito', nt_profile='/home/aileen/onedrive/treebuilding/profiles/0_NT_profiles/EF1A.fasta', aa_profile='/home/aileen/onedrive/treebuilding/profiles/0_AA_profiles/EF1A.fasta')
 
 def remove_empty_sequences(records):
     output = [rec for rec in records if rec.seq.count('-') < len(rec.seq)]
@@ -118,9 +116,9 @@ def align_sequences(records, profile=False, command=False):
             command = shlex.split(command)
         else:
             if profile:
-                command = ['mafft', '--addfragments', input_file_path, '--retree', '1', '--maxiterate', '0', '--adjustdirection', '--anysymbol', '--thread', str(threads), profile]
+                command = ['mafft', '--addfragments', input_file_path, '--retree', '1', '--maxiterate', '0', '--nofft', '--parttree', '--adjustdirection', '--anysymbol', '--thread', str(threads), profile]
             else:
-                command = ['mafft', '--retree', '1', '--maxiterate', '0', '--adjustdirection', '--anysymbol', '--thread', str(threads), input_file_path]
+                command = ['mafft', '--retree', '1', '--maxiterate', '0', '--nofft', '--parttree', '--adjustdirection', '--anysymbol', '--thread', str(threads), input_file_path]
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode != 0 or not result.stdout.strip():
             print("MAFFT failed:")
@@ -499,6 +497,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# Add min sequence length?
