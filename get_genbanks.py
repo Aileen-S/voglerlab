@@ -384,7 +384,7 @@ parser.add_argument("-l", "--longest", action='store_true', help="Save only long
 # Output options
 # Optional output of genbank format file as well as fasta
 parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results - provide file path")
-parser.add_argument("-c", "--clean", type=str, help="Remove numbers/special characters from species names")
+parser.add_argument("-cl", "--clean", type=str, help="Remove numbers/special characters from species names")
 
 args = parser.parse_args()         # Process input args from command line
 
