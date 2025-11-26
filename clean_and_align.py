@@ -398,6 +398,7 @@ def main():
     good_nt = [rec for rec in all_nt_records if rec.id in good_ids]
 
     if translation:
+        good_add_aa = []
         if (len(check) > 0):
             print(f'{len(check)} sequences failed filtering criteria')
 
@@ -461,9 +462,11 @@ def main():
                 print(f'{len(good_aa)} protein sequences with {len(good_aa[0].seq)} columns written to {args.aa_output}')
 
             # Get good NT records
-            good_add_ids = [rec.id for rec in good_add_aa]
-            good_add_nt = [rec for rec in check if rec.id in good_add_ids]
-            good_nt = good_nt + good_add_nt
+            if good_add_aa != []:
+                print(f'good_add_aa = {good_add_aa}')
+                good_add_ids = [rec.id for rec in good_add_aa]
+                good_add_nt = [rec for rec in check if rec.id in good_add_ids]
+                good_nt = good_nt + good_add_nt
 
 
     # Align as nucleotide
