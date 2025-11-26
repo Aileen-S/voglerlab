@@ -178,7 +178,7 @@ def get_feat_name(feat):
     return featnames
 
 
-def genbank_metadata(rec):
+def genbank_metadata(rec, clean=False):
     # NCBI taxon ID
     db_xref = rec.features[0].qualifiers.get("db_xref", [])
     txid = ""
@@ -188,10 +188,12 @@ def genbank_metadata(rec):
 
     # Taxonomy
     # Replace the following characters: > < . ( ) ; : ' ,
-    spec = re.sub(r"[><.();:'\"]", "", rec.annotations["organism"]).replace(",", "")
-    spec_parts = [part for part in spec.split(" ") if not re.search(r'\d', part) and not part.isupper()]
-    spec = " ".join(spec_parts)
-    #specfasta = spec.replace(" ", "_")
+    if clean:
+        spec = re.sub(r"[><.();:'\"]", "", rec.annotations["organism"]).replace(",", "")
+        spec_parts = [part for part in spec.split(" ") if not re.search(r'\d', part) and not part.isupper()]
+        spec = " ".join(spec_parts)
+    else:
+        spec = rec.annotations["organism"]
 
     taxonomy = ['', '', '', '', '', '']
     for tax in rec.annotations["taxonomy"]:
@@ -272,7 +274,7 @@ def find_genes(results, args):
             if args.taxon not in rec.annotations["taxonomy"]:
                 unrec_species.append(rec.name)
                 continue
-        output = genbank_metadata(rec)
+        output = genbank_metadata(rec, args.clean)
         meta[rec.name] = output
         g = 0
         for feature in rec.features:
@@ -382,6 +384,7 @@ parser.add_argument("-l", "--longest", action='store_true', help="Save only long
 # Output options
 # Optional output of genbank format file as well as fasta
 parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results - provide file path")
+parser.add_argument("-c", "--clean", type=str, help="Remove numbers/special characters from species names")
 
 args = parser.parse_args()         # Process input args from command line
 
