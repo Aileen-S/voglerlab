@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
+
 import argparse
-#import argcomplete
 import csv
 from Bio import SeqIO
 
@@ -11,7 +12,6 @@ parser.add_argument("-m", "--mptp", type=str, help="Optional: mPTP output txt fi
 parser.add_argument("-o", "--output", type=str, help="Output csv file")
 #parser.add_argument('-t', '--taxonomy', action='store_true', help='Split fasta IDs to get taxonomy in supermatrix')
 
-#argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 # Edit gene names in genes_dict and genes_list to match your input
@@ -21,15 +21,16 @@ genes_dict = {"12S":    {"code": "A"},
               "28S":    {"code": "D"},
               "ATP6":   {"code": "E"},
               "ATP8":   {"code": "F"},
-              "COX1":  {"code": "G"},
-              "COX2":   {"code": "H"},
+              "COX1a":  {"code": "G"},
+              "COX1b":  {"code": "H"},
+              "COX2":   {"code": "I"},
               "COX3":   {"code": "J"},
               "CYTB":   {"code": "K"},
               "ND1":    {"code": "L"},
               "ND2":    {"code": "M"},
               "ND3":    {"code": "N"},
-              "ND4.":    {"code": "O"},
-              "ND4L.":   {"code": "P"},
+              "ND4.":   {"code": "O"},
+              "ND4L.":  {"code": "P"},
               "ND5":    {"code": "Q"},
               "ND6":    {"code": "R"},
               "AK":     {"code": "S"},
@@ -40,7 +41,7 @@ genes_dict = {"12S":    {"code": "A"},
               "Wg":     {"code": "W"}}
 
 
-genes_list = ['12S', '16S', '18S', '28S', 'ATP6', 'ATP8', 'COX1', 'COX2', 'COX3', 'CYTB', 'ND1', 'ND2', 'ND3', 'ND4.', 'ND4L.', 'ND5', 'ND6', 'AK', 'CAD', 'EF1A', 'H3', 'RNApol', 'Wg']
+genes_list = ['12S', '16S', '18S', '28S', 'ATP6', 'ATP8', 'COX1a', 'COX1b', 'COX2', 'COX3', 'CYTB', 'ND1', 'ND2', 'ND3', 'ND4.', 'ND4L.', 'ND5', 'ND6', 'AK', 'CAD', 'EF1A', 'H3', 'RNApol', 'Wg']
 
 # Read partition file
 if args.partitions:
@@ -163,6 +164,7 @@ with open(args.output, "w") as file:
             row = [''.join(prec)] + row
             rows.append(row)
     if args.mptp:
+        ptp_rows = []
         for row in rows:
             ptp_id = None
             for spec, taxa in ptp_meta.items():
@@ -174,7 +176,9 @@ with open(args.output, "w") as file:
             if ptp_id is None:
                 print(f'No PTP ID for {rec.id}')
                 ptp_id = ''
-            row = ptp_id + row
+            row = [ptp_id] + row
+            ptp_rows.append(row)
+        rows = ptp_rows
     for row in rows:
         writer.writerow(row)
 print(f'{x} taxa written to {args.output}')
