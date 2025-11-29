@@ -70,10 +70,10 @@ if ( !is.null(opt$taxon) ) {
   } else {
   # meta <- read.table(opt$tsv, sep = '\t', header = TRUE)
   # meta1 <- read.csv(opt$tsv, header = TRUE, sep = "\t", quote = "")  
-  meta2 <- readr::read_tsv(opt$tsv)
+  meta <- readr::read_tsv(opt$tsv)
   } 
 
-meta2[meta2 == ''] <- NA
+meta[meta == ''] <- NA
 
 ####################################
 # Filter dataframe and write to file
