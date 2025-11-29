@@ -32,12 +32,12 @@ spec <- matrix(c(
 
 opt <- getopt(spec)
 
-opt <- data.frame(
-  tsv   = 'bold_metadata_251121.tsv',
-  genbank = FALSE,
-  barcode = FALSE,
-  bins = FALSE
-)
+# opt <- data.frame(
+#   tsv   = 'bold_metadata_251121.tsv',
+#   genbank = FALSE,
+#   barcode = FALSE,
+#   bins = FALSE
+# )
 
 gene_names <- c('18S-3P' = '18S',
                 '28S-D2' = '28S',
@@ -84,7 +84,7 @@ meta2[meta2 == ''] <- NA
 f_meta <- meta
 if (!is.null(opt$genbank)) {
   f_meta <- meta[!grepl("GenBank", meta$inst), ]
-  print(paste(nrow(f_meta), 'records remaining after removing those from GenBank'))
+  print(paste(nrow(f_meta), 'records remaining after removing those from GenBank'))}
 
 
 # Remove records without sequences or named genes
