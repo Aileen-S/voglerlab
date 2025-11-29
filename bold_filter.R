@@ -32,13 +32,12 @@ spec <- matrix(c(
 
 opt <- getopt(spec)
 
-# setwd('~/onedrive/treebuilding/Coleoptera/bold/')
-# opt <- data.frame(
-#   tsv   = 'raw_metadata.tsv',
-#   genbank = TRUE,
-#   barcode = TRUE,
-#   bins = FALSE
-# )
+opt <- data.frame(
+  tsv   = 'bold_metadata_251121.tsv',
+  genbank = FALSE,
+  barcode = FALSE,
+  bins = FALSE
+)
 
 gene_names <- c('18S-3P' = '18S',
                 '28S-D2' = '28S',
@@ -69,11 +68,12 @@ if ( !is.null(opt$taxon) ) {
 
   # Search existing files  
   } else {
-  #meta <- read.table(opt$tsv, sep = '\t', header = TRUE)
-  meta <- read.csv(opt$tsv, header = TRUE, sep = "\t", quote = "")  
+  # meta <- read.table(opt$tsv, sep = '\t', header = TRUE)
+  # meta1 <- read.csv(opt$tsv, header = TRUE, sep = "\t", quote = "")  
+  meta2 <- readr::read_tsv(opt$tsv)
   } 
 
-  meta[meta == 'None'] <- NA
+meta2[meta2 == ''] <- NA
 
 ####################################
 # Filter dataframe and write to file
@@ -81,41 +81,24 @@ if ( !is.null(opt$taxon) ) {
 
 # Filter out GenBank sequences
 
+f_meta <- meta
 if (!is.null(opt$genbank)) {
-  # Filter for non-empty and non-missing genbank_accession
-  # f_meta <- meta %>% filter(is.na(genbank_accession) | genbank_accession == "")
-  # print(paste(nrow(f_meta), 'records remaining after removing those with GenBank accession'))
-  if ('institution_storing' %in% names(meta)) {
-    f_meta <- meta[!grepl("GenBank", meta$institution_storing), ]
-  } else if ('sequence_run_site' %in% names(meta)) {
-    f_meta <- meta[!grepl("GenBank", meta$sequence_run_site), ]
-  } else {
-    f_meta <- meta
-  }
+  f_meta <- meta[!grepl("GenBank", meta$inst), ]
   print(paste(nrow(f_meta), 'records remaining after removing those from GenBank'))
-} else {
-  f_meta <- meta
-}
+
 
 # Remove records without sequences or named genes
-if ('marker_code' %in% names(f_meta)) {
-  f_meta <- f_meta %>% mutate(markercode = marker_code)
-}
-f_meta <- f_meta %>% filter(markercode!="")
-#f_meta <- f_meta %>% filter(bin_uri!="")
-if ('nuc' %in% names(f_meta)) {
-  f_meta <- f_meta %>% mutate(nucleotides = nuc)
-}
-f_meta <- f_meta %>% filter(nucleotides!="")
+f_meta <- f_meta %>% filter(marker_code!="" & nuc!="")
 
 # Keep only COI sequences
 if ( !is.null(opt$barcode)) {
-  f_meta <- f_meta %>% filter(markercode=="COI-5P")
+  f_meta <- f_meta %>% filter(marker_code=="COI-5P")
   print(paste(nrow(f_meta), 'records with COI-5P sequences'))
 }
 
 # Get sequence lengths
-f_meta$sequence_length <- nchar(f_meta$nucleotides)
+f_meta <- f_meta %>% mutate(nuc = str_replace_all(nuc, "[N-]", ""))
+f_meta$sequence_length <- nchar(f_meta$nuc)
 
 # Keep longest sequence for each bin, for each gene
 if ( !is.null(opt$bins)) {
@@ -164,11 +147,6 @@ if ( !is.null(opt$metadata)) {
   f_meta[ , 'ncbi[!is.na(df$coords)]_taxid'] <- ''
 }
 
-#f_meta <- mutate(f_meta, TXID = replace(TXID, NA, ""))
-#f_meta <- mutate(f_meta, markercode = replace(markercode, "COXIII", "COX3"))
-
-# Remove gaps from sequences
-f_meta$nucleotides <- gsub("-","",as.character(f_meta$nucleotides))
 
 #Edit dataframe to match lab metadata
 empty <- c('lab_id', 'subgenus', 'subtribe',	'tribe', 'superfamily',	'infraorder',	'suborder',	'genbank_accession')
@@ -199,13 +177,13 @@ write.csv(csv, 'metadata.csv', row.names = FALSE)
 print('Metadata saved to metadata.csv')
 
 # Get list of gene names
-genes <-c(unique(f_meta$markercode))
+genes <-c(unique(f_meta$marker_code))
 print('Genes found:')
 print(genes)
 
 # Replace with standard names
-f_meta <- f_meta %>%  mutate(markercode = str_replace_all(markercode, gene_names))
-genes <-unique(f_meta$markercode)
+f_meta <- f_meta %>%  mutate(marker_code = str_replace_all(marker_code, gene_names))
+genes <-unique(f_meta$marker_code)
 print(genes)
 
 #######################
@@ -215,20 +193,20 @@ print(genes)
 for (gene in genes) {
   
   # Filter dataframe for gene
-  df <- f_meta %>% filter(markercode==gene)
+  df <- f_meta %>% filter(marker_code==gene)
   file_out <- file(paste(gene, ".fasta", sep = ''), "w")
   # Write to fasta
   for (i in 1:nrow(df)) {
     # Write header line
     cat(">", df$processid[i], "\n", file = file_out, sep = '')
     # Write sequence data with line breaks
-    cat(df$nucleotides[i], "\n", file = file_out, sep = '')
+    cat(df$nuc[i], "\n", file = file_out, sep = '')
   }
   
   # Close the file connection
   close(file_out)
   
   #write.fasta(sequences = vec, names = names(vec), file.out = paste(gene, ".fasta", sep = ''))
-  cat(length(df$nucleotides), ' sequences writen to ', gene, '.fasta\n', sep = '')
+  cat(length(df$nuc), ' sequences writen to ', gene, '.fasta\n', sep = '')
   
 }
