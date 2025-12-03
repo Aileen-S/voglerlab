@@ -99,6 +99,7 @@ if args.mptp:
                     else:
                         ptp_meta[spec_no] = [line]
 
+
 # Write CSV metadata file
 with open(args.output, "w") as file:
     writer = csv.writer(file)
@@ -166,15 +167,14 @@ with open(args.output, "w") as file:
     if args.mptp:
         ptp_rows = []
         for row in rows:
+            rec_id = row[1]
             ptp_id = None
             for spec, taxa in ptp_meta.items():
-                if rec.id in taxa:
+                if rec_id in taxa:
                     ptp_id = spec
-                # else:
-                #     print(f'No PTP ID for {rec.id}')
-                #     ptp_id = 'none'
+
             if ptp_id is None:
-                print(f'No PTP ID for {rec.id}')
+                print(f'No PTP ID for {rec_id}')
                 ptp_id = ''
             row = [ptp_id] + row
             ptp_rows.append(row)
