@@ -7,6 +7,8 @@ import re
 from itertools import repeat
 import multiprocessing
 import time
+import sys
+import csv
 
 start_time = time.time()
 
@@ -25,26 +27,31 @@ def is_nucleotide(records):
     return True if nuc > other else False
 
 
-def replace_ambiguous(records, nuc):
-    ambiguous = '[RYSWKMBDHVN]' if nuc else '[BZJX]'
-    for rec in records:
-        seq = str(rec.seq.upper())
-        seq = re.sub(ambiguous, '-', seq)
-        rec.seq = Seq(seq)
-    return records
-
 
 def split_into_chunks(records, num_chunks):
     for i in range(num_chunks):
         yield records[i::num_chunks]
 
 
+
 def is_identical(seq_a, seq_b, min_overlap):
-    overlap = [
-        (a, b) for a, b in zip(seq_a, seq_b)
-        if a != '-' and b != '-']
-    if len(overlap) > min_overlap:
-        return all(a == b for a, b in overlap)
+    compat = {
+        'R': {'A', 'G', 'R'},
+        'Y': {'C', 'T', 'Y'},
+        'A': {'A', 'R'},
+        'G': {'G', 'R'},
+        'C': {'C', 'Y'},
+        'T': {'T', 'Y'}
+    }
+    
+    match_count = 0
+    for a, b in zip(seq_a, seq_b):
+        if a != '-' and b != '-':
+            if b not in compat.get(a, {a}):
+                return False
+            match_count += 1
+            
+    return match_count >= min_overlap
 
 
 def process_chunk(chunk, seq_dict, min_overlap):
@@ -67,15 +74,37 @@ def choose_best(matches, seq_dict, nuc):
     max = 0
     for match in matches:
         ambi_count = sum(1 for char in seq_dict[match] if char in ambiguous)
-        if ambi_count > max:
+        length = len(seq_dict[match]) - ambi_count
+        if length > max:
             best = match
-            max = ambi_count
+            max = length
     return best
 
 
 def keep(records, keep_ids):
     # Add all keep records to output
     return records
+
+def write_csv(seq_dict, non_dup_ids, unique_dups, final_ids, csv_file, nuc):
+    with open(csv_file, 'w') as file:
+        writer = csv.writer(file)
+        writer.writerow(['rec_id', 'unique_seq', 'dup_id', 'chosen_seq', 'seq_length'])
+        ambiguous = '[RYSWKMBDHVN-]' if nuc else '[BZJX-]'
+        t = 1
+        for rec_id in non_dup_ids:
+            ambi_count = sum(1 for char in seq_dict[rec_id] if char in ambiguous)
+            length = len(seq_dict[rec_id]) - ambi_count
+            writer.writerow([rec_id, 'TRUE', f'T{t}', 'TRUE', length])
+            t += 1
+        for dup_list in unique_dups:
+            for rec_id in dup_list:
+                ambi_count = sum(1 for char in seq_dict[rec_id] if char in ambiguous)
+                length = len(seq_dict[rec_id]) - ambi_count
+                chosen = 'TRUE' if rec_id in final_ids else 'FALSE'
+                writer.writerow([rec_id, 'FALSE', f'T{t}', chosen, length])
+            t += 1            
+
+
 
 # Argument parserremoved and 
 # Add option to find only mito genes, or only selected genes.
@@ -86,6 +115,7 @@ parser.add_argument('-d', '--dups', type=str, help="Optional output file for rem
 parser.add_argument('-m', '--min_overlap', type=int, help="Minumum overlap length for sequences to be compared and removed if identical (default 400 characters)")
 parser.add_argument("-k", "--keep", type=str, help="File with list of IDs to keep, regardless of identical sequences")
 parser.add_argument('-t', '--thread', type=str, help="Number of threads (default all available)")
+parser.add_argument('-c', '--csv', type=str, help="CSV output file")
 
 
 args = parser.parse_args()
@@ -101,8 +131,7 @@ def main():
         print('WARNING: Sequences IDs not all unique. This may cause errors in filtering.\n')
         sys.exit()
     nuc = is_nucleotide(records)
-    clean = replace_ambiguous(records, nuc)
-    seq_dict = {rec.id: rec.seq for rec in clean}
+    seq_dict = {rec.id: rec.seq for rec in records}
 
     # Split seqeunces into chunks
     num_threads = multiprocessing.cpu_count()
@@ -116,7 +145,6 @@ def main():
         results = pool.starmap(process_chunk, chunk_args)
     duplicates = [item for sublist in results for item in sublist]
 
-
     # Combine match lists
     x = 0
     sorted_dups = set()
@@ -124,10 +152,16 @@ def main():
         dup_list.sort()
         sorted_dups.add(tuple(dup_list))
     unique_dups = [list(dup) for dup in sorted_dups]
+
     dup_ids = [item for sublist in unique_dups for item in sublist]
+
+    dup_seqs = {}
     for dup_list in unique_dups:
-        x += 1
-        print(f'Duplicate sequence set {x}: {', '.join(dup_list)}')
+        if len(dup_list) > 0:
+            x += 1
+            # dup_seqs[x] = records[int(dup_list[0])].seq
+            print(f'Duplicate sequence set {x}: {', '.join(dup_list)}')
+    non_dup_ids = [rec.id for rec in records if rec.id not in dup_ids]
 
     # Choose best (least uncertain characters) for each match set (or sequence on keep list, if present)
     if args.keep:
@@ -160,6 +194,11 @@ def main():
             SeqIO.write(removed, output, "fasta")
         print(f"Saved {len(removed)} duplicate records from {args.input} to {args.dups}")
 
+    # Write CSV
+    if args.csv:
+        write_csv(seq_dict, non_dup_ids, unique_dups, final_ids, args.csv, nuc)
+
+                
     end_time = time.time()
     elapsed = (end_time - start_time)
     hours = int(elapsed // 3600)
