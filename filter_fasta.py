@@ -118,7 +118,7 @@ def replace_ambiguous(sequence, nuc):
 def keep_longest(input_fasta, id_map, id_file, found, not_found, keep):
     cleaned = {}
     longest = []
-    notfound = []
+    checked = []
     with open(input_fasta) as file:
         records = list(SeqIO.parse(file, "fasta"))
     print(f'{len(records)} records in {input_fasta}')
@@ -134,12 +134,14 @@ def keep_longest(input_fasta, id_map, id_file, found, not_found, keep):
                 if len(cleaned[rec_id]['seq']) > max_len:
                     max_len = len(cleaned[rec_id])
                     max_ref = rec_id
+                checked.append(rec_id)
             except KeyError:
                 continue
         if max_ref:
             longest.append(cleaned[max_ref]['seq_id'])
 
     if keep:
+        notfound = [rec.id for rec in records if rec.id not in checked]
         selected = [rec for rec in records if rec.id in longest] + [rec for rec in records if rec.id in notfound]
     else:
         selected = [rec for rec in records if rec.id in longest]
