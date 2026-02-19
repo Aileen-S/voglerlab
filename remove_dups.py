@@ -35,7 +35,6 @@ def is_identical(seq_a, seq_b, max_gaps):
     seq_a = seq_a.upper().replace('N', '-')
     seq_b = seq_b.upper().replace('N', '-')
     g = 0
-    print(seq_a, seq_b)
     for a, b in zip(seq_a, seq_b):
         if a != b:
             if a == '-' or b == '-':
