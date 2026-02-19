@@ -12,7 +12,6 @@ import csv
 
 start_time = time.time()
 
-
 def is_nucleotide(records):
     acgt  = ['A', 'C', 'G', 'T']
     nuc = 0
@@ -27,41 +26,35 @@ def is_nucleotide(records):
     return True if nuc > other else False
 
 
-
 def split_into_chunks(records, num_chunks):
     for i in range(num_chunks):
         yield records[i::num_chunks]
 
 
-
-def is_identical(seq_a, seq_b, min_overlap):
-    compat = {
-        'R': {'A', 'G', 'R'},
-        'Y': {'C', 'T', 'Y'},
-        'A': {'A', 'R'},
-        'G': {'G', 'R'},
-        'C': {'C', 'Y'},
-        'T': {'T', 'Y'}
-    }
-    
-    match_count = 0
+def is_identical(seq_a, seq_b, max_gaps):
+    seq_a = seq_a.upper().replace('N', '-')
+    seq_b = seq_b.upper().replace('N', '-')
+    g = 0
+    print(seq_a, seq_b)
     for a, b in zip(seq_a, seq_b):
-        if a != '-' and b != '-':
-            if b not in compat.get(a, {a}):
-                return False
-            match_count += 1
-            
-    return match_count >= min_overlap
+        if a != b:
+            if a == '-' or b == '-':
+                g += 1
+                if g > max_gaps:
+                    return False
+            else:
+                return False            
+    return True
 
 
-def process_chunk(chunk, seq_dict, min_overlap):
+def process_chunk(chunk, seq_dict, max_gaps):
     matches = []
     for rec in chunk:
         hits = []
         loop_dict = seq_dict.copy()
         del loop_dict[rec.id]
         for seq_id, seq in loop_dict.items():
-            if is_identical(rec.seq, seq, min_overlap):
+            if is_identical(rec.seq, seq, max_gaps):
                 hits.append(seq_id)
         if len(hits) > 0:
             hits.append(rec.id)
@@ -79,7 +72,6 @@ def choose_best(matches, seq_dict, nuc):
             best = match
             max = length
     return best
-
 
 def keep(records, keep_ids):
     # Add all keep records to output
@@ -112,7 +104,7 @@ parser = argparse.ArgumentParser(description="Remove duplicate sequences from fa
 parser.add_argument("-i", "--input", type=str, help="Input fasta")
 parser.add_argument('-o', '--output', type=str, help="Output fasta with duplicates removed")
 parser.add_argument('-d', '--dups', type=str, help="Optional output file for removed duplicate sequences")
-parser.add_argument('-m', '--min_overlap', type=int, help="Minumum overlap length for sequences to be compared and removed if identical (default 400 characters)")
+parser.add_argument('-m', '--max_gaps', type=int, help="Minumum overlap length for sequences to be compared and removed if identical (default 400 characters)")
 parser.add_argument("-k", "--keep", type=str, help="File with list of IDs to keep, regardless of identical sequences")
 parser.add_argument('-t', '--thread', type=str, help="Number of threads (default all available)")
 parser.add_argument('-c', '--csv', type=str, help="CSV output file")
@@ -139,8 +131,8 @@ def main():
 
 
     # Check for identical sequences
-    min_overlap = args.min_overlap if args.min_overlap else 400
-    chunk_args = zip(chunks, repeat(seq_dict), repeat(min_overlap))
+    max_gaps = args.max_gaps if args.max_gaps else 0
+    chunk_args = zip(chunks, repeat(seq_dict), repeat(max_gaps))
     with multiprocessing.Pool(processes=num_threads) as pool:
         results = pool.starmap(process_chunk, chunk_args)
     duplicates = [item for sublist in results for item in sublist]
@@ -152,6 +144,7 @@ def main():
         dup_list.sort()
         sorted_dups.add(tuple(dup_list))
     unique_dups = [list(dup) for dup in sorted_dups]
+
 
     dup_ids = [item for sublist in unique_dups for item in sublist]
 
