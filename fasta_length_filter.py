@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from Bio import SeqIO
-import argparse, argcomplete
+import argparse
 import csv
 
 parser = argparse.ArgumentParser(description="Rename sequences in fasta file from CSV")
@@ -9,7 +9,6 @@ parser.add_argument("-i", "--input", type=str, help="Input fasta")
 parser.add_argument("-o", "--output", type=str, help="Output fasta file")
 parser.add_argument("-l", "--length", type=str, help="Minimum sequence length")
 
-argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 x = 0

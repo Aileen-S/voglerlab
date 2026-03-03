@@ -15,6 +15,7 @@ def parse_args():
     parser.add_argument("-o", "--output", type=str, help="Output fasta file")
     parser.add_argument("-r", "--renamed", type=str, help="Optional output csv with old and new names")
     parser.add_argument("-a", "--amino_acid", type=str, help="Sequence is amino acid (default nucleotide). Needed to count gap characters in alignments.")
+    # parser.add_argument("-p", "--priority", type=str, help="Input priority list (keep these IDs for dups, rather than longest sequence)")
 
     return parser.parse_args()
 
@@ -48,6 +49,7 @@ def process_fasta_ids(input_fasta, meta, list=False):
                     if r_id in v:
                         new_id = f'{k};{frame}'
                         break  # Break once found
+
             else:
                 # For non-list mode, check exact match
                 if r_id in meta:

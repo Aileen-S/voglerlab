@@ -203,16 +203,20 @@ def genbank_metadata(rec, clean=False):
         if tax.endswith('idae'): taxonomy[3] = tax
         if tax.endswith('inae'): taxonomy[4] = tax
         if tax.endswith('ini'): taxonomy[5] = tax
+    taxonomy_string = '|'.join(rec.annotations["taxonomy"])
     #taxonomy.append(spec.split(' ')[0])
     #fastatax = f"{txid}_{taxonomy[2]}_{taxonomy[3]}_{taxonomy[4]}_{specfasta}"
 
     # Location
-    if "country" in rec.features[0].qualifiers:
-        location = rec.features[0].qualifiers["country"][0]
+    if "geo_loc_name" in rec.features[0].qualifiers:
+        location = rec.features[0].qualifiers["geo_loc_name"][0]
         if ":" in location:
             country, region = location.split(":", 1)
+            country = country.strip()
+            region = region.strip()
         else:
             country = location
+            region = ""
     else:
         country = ""
         region = ""
@@ -251,10 +255,11 @@ def genbank_metadata(rec, clean=False):
               "date": rec.annotations["date"],
               "taxonomy": taxonomy,
               "country": country,
+              "region": region,
               "lat": lat,
               "long": long,
               "refs": refs,
-              "row": [txid, rec.name, '', '', ''] + taxonomy + [spec, country, lat, long] + refs}
+              "row": [txid, rec.name, '', '', ''] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
     return output
 
 
@@ -458,7 +463,7 @@ def main():
             writer = csv.writer(file)
             writer.writerow(
                 ["ncbi_taxid", "genbank_accession", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
-                "subfamily", "tribe", "species", "country", "latitude", "longitude", "ref_authoer", "ref_title", "ref_journal"])
+                "subfamily", "tribe", "species", "taxonomy", "country", "region", "latitude", "longitude", "ref_authoer", "ref_title", "ref_journal"])
             for gbid, rec in meta.items():
                 if gbid in accessions:
                     if gbid not in added:

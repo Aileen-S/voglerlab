@@ -2,7 +2,7 @@
 
 
 from Bio import SeqIO
-import argparse, argcomplete
+import argparse
 import sys
 
 parser = argparse.ArgumentParser(description="Remove duplicate fasta IDs and/or pad sequences to match longest.")
@@ -11,7 +11,6 @@ parser.add_argument('-o', '--output', type=str, help="Output fasta")
 parser.add_argument('-d', '--dups', action='store_true', help='Remove duplicate fasta IDs')
 parser.add_argument('-l', '--length', action='store_true', help='Pad sequences to match longest')
 
-argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 if not args.dups and not args.length:

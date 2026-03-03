@@ -4,13 +4,13 @@
 # Programs to install
 # -------------------
 
-# Python, Biopython
+# python, biopython, requests
 # BLAST
-# r-base, r-bold, r-getopt, r-dplyr
+# r-base, r-getopt, r-dplyr
 # MAFFT
-# CIAlign
 # mPTP
 # RAxML-NG
+# treeshrink
 
 # -------------------
 # Github scripts uesd
@@ -18,16 +18,18 @@
 
 # https://github.com/Aileen-S/voglerlab
 # bold_cli.R
+# get_lab_gbs.py 
 # extract_lab_genes.py
-# get_genbanks.py
-# fasta_dups_length.py
 # filter_fasta.py
 # filter_tips.R
 # partitions.py
+# process_blast.py
 # ptp_filter_output.py
+# remove_dups.py
 # rename_fasta.py
 # ry_code.py
 # supermatrix_count.py
+
 
 # https://github.com/tjcreedy/biotools
 # findframe.py
@@ -50,9 +52,8 @@
 
 # Fastas for:
   # Profile: unaligned nucleotides for COX1a and COX1b for BLAST
-  # Profile: nucleotide alignments for aligning RNA genes
-  # Profile: protein alignments for all protein coding genes
-  # Profiles available at github: ###############################################################################
+  # Profile: nucleotide alignments
+  # Profile: protein alignments
 
   # Fasta file name format:
   #   12S.fasta 16S.fasta ATP6.fasta ATP8.fasta COX1a.fasta COX1b.fasta COX2.fasta COX3.fasta CYTB.fasta
@@ -84,150 +85,104 @@ Lab mitogenomes
 p
 
 # Get lab mitogenome sequences from Valentine database
-mkdir lab
-cd lab
+# First write input file with list of required mitogenome IDs - below called 'lab_ids.txt'
+# Remember to include outgroup
+# Add latest MMG database version to command, eg 'gbmaster_2024-04-20'
 
-# Add latest MMG database version, eg 'gbmaster_2024-04-20'
-python3 get_lab_gbs.py -i lab_ids.txt -o $taxon.gb -v version 
-python3 extract_lab_genes.py -g $taxon.gb
+mkdir mmg
+cd mmg
 
-# Organise fastas
-mkdir frame
-mv *fasta frame
-mkdir noframe
-mv *rf noframe
-
-# Make sure all genes have reading frame. Find reading frame if missing
-if [[ -d noframe && ! -z "$(ls -A noframe)" ]]; then
-  for file in noframe/*
-  do
-    base=$(basename ${file%.rf})
-    echo $base
-    # Add path to profile sequences
-    findframe.py -r profiles/aa/$base.fasta -t 5 < $file > noframe/$base.fasta
-    cat  noframe/$base.fasta frame/$base.fasta > frame/$base.fasta.a
-    mv frame/$base.fasta.a frame/$base.fasta
-  done
-fi
+python3 github/voglerlab/get_lab_gbs.py -i lab_ids.txt -o $taxon.gb -v version 
+python3 github/voglerlab/extract_lab_genes.py -g $taxon.gb
 
 
 cat << p
 
-------------
-Add Outgroup
-------------
+---------------
+Get NCBI TaxIDs
+---------------
 p
 
-# Get outgroup, if not already added with lab sequences
-mkdir outgroup
-cd outgroup
+mkdir blast
+cd blast
 
-# Add latest MMG database version, eg 'gbmaster_2024-04-20'
-python3 get_lab_gbs.py -i outgroup_ids.txt -o $taxon.gb -v version 
-python3 extract_lab_genes.py -g $taxon.gb
+# Define taxon, eg:
+taxon=Dytiscidae
 
-# Organise fastas
-mkdir frame
-mv *fasta frame
-mkdir noframe
-mv *rf noframe
-
-# Find reading frame
-if [[ -d noframe && ! -z "$(ls -A noframe)" ]]; then
-  for file in noframe/*
-  do
-    base=$(basename ${file%.rf})
-    echo $base
-    findframe.py -r profiles/aa/$base.fasta -t 5 < $file > noframe/$base.fasta
-    cat  noframe/$base.fasta frame/$base.fasta > frame/$base.fasta.a
-    mv frame/$base.fasta.a frame/$base.fasta
-  done
-fi
-
-
-cat << p
-
----------------------
-Search BLAST Database
----------------------
-p
-
-mkdir genbank
-cd genbank
-
-# Direct to BLAST database
-# Below is example of location on franklin/HPC: edit as needed
+# Give path to BLAST database, eg. on Crop Diversity:
+export BLASTDB=/mnt/shared/datasets/databases/ncbi/
+# or on Valentine:
 export BLASTDB=/mbl/share/workspaces/groups/database/nt-2024-05-29_blastdb
 
-# Add API key to speed up GenBank search if necessary
-# export NCBI_API_KEY=
-
+# Add your personal API key to speed up GenBank search
+export NCBI_API_KEY=
 
 # Get NCBI taxonomy ID for chosen taxon with script from BLAST package
+# If multiple taxa are required, run this process for each then concatenate the output ID lists
 output=$(get_species_taxids.sh -n $taxon)
 txid=$(echo "$output" | grep 'Taxid' | awk '{print $3}')
 echo "Taxon ID: $txid"
 
-# Get list of NCBI species taxononmy IDs for chosen taxon
-echo "Getting txid list"
+# Get list of NCBI taxon IDs for chosen taxon
+echo "Getting NCBI txid list"
 get_species_taxids.sh -t $txid > $taxon.txids
-
-# Search BLAST nucleotide database using profile, limit search using taxon ID list, output list of accessions
-# Adjust BLAST parameters as desired
-blastn -db nt -query profiles/blast/COX1a.fasta -taxidlist $taxon.accs -out COX1a.blast -max_target_seqs 100000 -outfmt '6 sacc'
-blastn -db nt -query profiles/blast/COX1b.fasta -taxidlist $taxon.accs -out COX1b.blast -max_target_seqs 100000 -outfmt '6 sacc'
+# Get outgroup NCBI taxids from metadata and append to $taxon.txids
 
 
 cat << p
 
----------------------
-Get GenBank Sequences
----------------------
+------------
+BLAST Search
+------------
 p
 
-# Genes available with this script are ATP6, ATP8, COX1, COX2, COX3, CYTB, ND1, ND2, ND3, ND4, ND4L, ND5, ND6,
-# AK, CAD, EF1A, H3, RNApol, Wg, 12S, 16S, 18S, 28S
+gene=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $2}' ../config.genes)
 
-# Get COX1a sequences from BLAST search
-python3 ~/scratch/github/voglerlab/get_genbanks.py -f COX1a.blast -r gbid -e mixedupvoyage@gmail.com -c
-mv COX1.fasta COX1a.fasta
-mv metadata.csv meta_COX1a.csv
+# BLAST search for each gene, using profile fasta as query
+# Output gives NCBI taxon ID, GenBank accession and match start and stop positions
+# Run processes in parallel if desired using a slurm array job.
+blastn -db nt -query $gene.fasta -taxidlist $taxon.txids -out $gene.blast -max_target_seqs 100000000 -outfmt '6 staxids sacc sstart send' -evalue 1e-5 -num_threads 4 
 
-# Get COX1b sequences from BLAST result
-python3 ~/scratch/github/voglerlab/get_genbanks.py -f COX1b.blast -r gbid -e mixedupvoyage@gmail.com -c
-mv COX1.fasta COX1b.fasta
-mv metadata.csv meta_COX1b.csv
+# For each gene, get coordinates of longest sequence for each TXID
+python3 github/voglerlab/process_blast.py -i $gene.blast -o $gene.out -e email
 
-# Get other sequences with keyword search
-python3 ~/scratch/github/voglerlab/get_genbanks.py -t $taxon -e mixedupvoyage@gmail.com
-rm COX1.fasta
-mv metadata.csv meta_full.csv
+# For each gene, extract sequences from BLAST database
+> "$gene.fasta"
+while IFS= read -r line
+do
+# Read sequence coordinates from $gene.out file
+  accession=$(echo "$line" | awk '{print $1}')
+  start=$(echo "$line" | awk '{print $2}')
+  end=$(echo "$line" | awk '{print $3}')
 
-# Combine metadata
-cat meta* > meta_1.csv
-sort meta_1.csv | uniq > meta_2.csv
-awk '/^ncbi/{print; next} {a[NR]=$0} END{for(i in a) print a[i]}' meta_2.csv > metadata.csv
-rm meta_1.csv meta_2.csv
+# Run blastdbcmd and write fasta file
+  blastdbcmd -db nt -entry "$accession" -range "$start-$end" -target_only -outfmt %f >> "$gene.fasta"
+done < "$gene.out"
 
-# Get frame tags if necessary
-mkdir frame
-mv *fasta frame
-mkdir noframe
-mv *rf noframe
-
-# Find reading frame
-if [[ -d noframe && ! -z "$(ls -A noframe)" ]]; then
-  for file in noframe/*
-  do
-    base=$(basename ${file%.rf})
-    echo $base
-    findframe.py -r profiles/aa/$base.fasta -t 5 < $file > noframe/$base.fasta
-    cat  noframe/$base.fasta frame/$base.fasta > frame/$base.fasta.a
-    mv frame/$base.fasta.a frame/$base.fasta
-  done
-fi
+# Strip fasta IDs to leave only accession
+for file in *fasta
+do
+  sed -i 's/^\(>[^.]*\).*/\1/' $file
+done
 
 cd ..
+
+
+cat << p
+
+--------------
+GenBank Search
+--------------
+p
+
+
+file=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $2}' ../config.blast)
+echo $file
+
+# Direct to BLAST database
+export NCBI_API_KEY=
+
+python3 ~/apps/github/voglerlab/get_genbanks.py -f $file.txids -r txid -e mixedupvoyage@gmail.com -t Coleoptera
 
 
 cat << p
@@ -237,60 +192,47 @@ BOLD search
 -----------
 p
 
+
 mkdir bold
 cd bold
 
-# Search BOLD database online (or use the same script to search a previously downloaded BOLD file
-Rscript bold_cli.R -t $taxon -m ../genbank/metadata.csv -g
+# Retrive BOLD sequences and metadata for taxon
+python3 github/voglerlab/search_bold.py -t $taxon -o bold_metadata.tsv
+# Multiple taxa can be seperated by a comma
+python3 github/voglerlab/search_bold.py -t taxon1,taxon2 -o bold_metadata.tsv
 
 
-cat << p
+# Filter output to get one barcode per BIN and write to fasta
+Rscript github/voglerlab/bold_cli.R -c bold_metadata.tsv -b -g
 
------------------------
-Get frame tags for BOLD
------------------------
-p
-
-mkdir noframe
-mkdir frame
-
-# Find reading frame
-for file in profiles/aa/*
-do
-  base=$(basename $file)
-  echo $base
-  findframe.py -r $file -t 5 < raw/$base > frame/$base
-done
-
-# Copy RNA fastas to 'frame' directory
-cp noframe/1* noframe/2* frame
 cd ..
 
+
 cat << p
 
--------------------
-Merge raw sequences
--------------------
+-----------------
+Merge gene fastas
+-----------------
 p
 
-mkdir alignment
-cd alignment
+mkdir frame
+cd frame
 
 # Define the list of possible file names
-file_names=("12S.fasta" "16S.fasta" "18S.fasta" "28S.fasta" "AK.fasta" "ATP6.fasta" "ATP8.fasta" "CAD.fasta" "COX1.fasta" "COX1a.fasta" "COX1b.fasta" "COX2.fasta" "COX3.fasta" "CYTB.fasta" "EF1A.fasta" "H3.fasta" "ND1.fasta" "ND2.fasta" "ND3.fasta" "ND4.fasta" "ND4L.fasta" "ND5.fasta" "ND6.fasta" "Wg.fasta")
+file_names=("12S.fasta" "16S.fasta" "18S.fasta" "28S.fasta" "AK.fasta" "ATP6.fasta" "ATP8.fasta" "CAD.fasta" "COX1.fasta" "COX1a.fasta" "COX1b.fasta" "COX2.fasta" "COX3.fasta" "CYTB.fasta" "EF1A.fasta" "H3.fasta" "ND1.fasta" "ND2.fasta" "ND3.fasta" "ND4.fasta" "ND4L.fasta" "ND5.fasta" "ND6.fasta" "RNApol.fasta" "Wg.fasta")
 
 # List of directories to check
 directories=(
-  "../lab/frame"
-  "../genbank/frame"
-  "../bold/frame"
-  "../outgroup/frame"
+  "../mmg"
+  "../blast"
+  "../bold"
 )
 
-# Join files
+# Merge fastas for each gene
 for f in "${file_names[@]}"; do
   output="$f"
-  : > "$output"
+  : > "$output"  # Create or truncate the output file
+
   for dir in "${directories[@]}"; do
     if [ -e "$dir/$f" ]; then
       cat "$dir/$f" >> "$output"
@@ -298,22 +240,9 @@ for f in "${file_names[@]}"; do
   done
 done
 
-# Delete files with less than 10 sequences
-
-for file in *fasta
-do
-  sequence_count=$(grep -c "^>" "$file")
-  # Check if the sequence count is less than 10
-  if (( sequence_count < 10 )); then
-    echo "Deleting $file, as it contains only $sequence_count sequences"
-    rm "$file"
-  fi2533
-done
-
-# Split into RNA, mitogenome protein coding and nuclear protein coding
-mkdir n1_raw m1_raw r1_raw 
-mkdir n2_aa n3_aaal n4_ntal m2_aa m3_aaal m4_ntal r4_ntal
-mv 12S.fasta 16S.fasta 18S.fasta 28S.fasta r1_raw
+# Separate into mitochondrial protein coding, nuclear protein coding and RNA
+mkdir m1_raw n1_raw r1_raw
+mv 1*.fasta 2*.fasta r1_raw
 mv COX*fasta CYTB.fasta ATP*fasta ND*fasta m1_raw
 mv RNApol.fasta Wg.fasta EF1A.fasta H3.fasta CAD.fasta AK.fasta n1_raw
 
@@ -324,11 +253,73 @@ cat << p
 COX1 sequences
 --------------
 p
-# Merge COX1a and COX1b, removing duplicates. These will be separated again later.
+# Merge COX1a and COX1b with complete COX# Mitogenome frame tags
+sed -i -E "s/;frame=[0-9]*(;$)?//" m1_raw/$fgene.fasta
+mafft --add m1_raw/$fgene.fasta --maxiterate 2 --adjustdirection --thread 8 ~/ascott/profiles/0_NT_profiles/$base >  m2_align/$gene.fasta
+sed "/>/! s/-//g" m2_align/$gene.fasta > m3_nogaps/$gene.fasta
+~/apps/github/biotools/findframe.py -r ~/ascott/profiles/0_AA_profiles/$gene.fasta -t 5 -s -u < m3_nogaps/$gene.fasta > m4_frame/$gene.fasta
+
+1 sequences. Seperate manually after alignment
 mkdir COI
 mv m1_raw/COX1* COI
 cat COI/COX1* > COI/COX1all.fasta
-python3 fasta_dups_length.py -i COI/COX1all.fasta -o m1_raw/COX1.fasta -d
+cp COI/COX1all.fasta m1_raw/COX1.fasta
+
+# Alternatively split complete COX1 sequences into COX1a and COX1b regions at this stage
+
+
+cat << p
+
+-----------------
+Get reading frame
+-----------------
+p
+
+mkdir m2_align n2_align m3_nogaps n3_nogaps m4_frame n4_frame
+
+# Mitogenome frame tags
+for file in m1_raw/*
+do
+  base=$(basename $file)
+  echo $base
+  sed -i -E "s/;frame=[0-9]*(;$)?//" $file
+  mafft --add $file --maxiterate 2 --adjustdirection --thread 8 profiles/0_NT_profiles/$base >  m2_align/$base
+  sed "/>/! s/-//g" m2_align/$base > m3_nogaps/$base
+  github/biotools/findframe.py -r profiles/0_AA_profiles/$base -t 5 -s -u < m3_nogaps/${base#*/} > m4_frame/${base#*/}
+done
+
+# Nuclear frame tags
+for file in n1_raw/*
+do
+  base=$(basename $file)
+  echo $base
+  sed -i -E "s/;frame=[0-9]*(;$)?//" $file
+  mafft --add $file --maxiterate 2 --adjustdirection --thread 8 profiles/0_NT_profiles/$base >  n2_align/$base
+  sed "/>/! s/-//g" n2_align/$base > n3_nogaps/$base
+  github/biotools/findframe.py -r profiles/0_AA_profiles/$base -t 5 -s -u < n3_nogaps/${base#*/} > n4_frame/${base#*/}
+done
+
+cd ..
+
+cat << p
+
+---------
+Alignment
+---------
+p
+
+mkdir alignment
+
+# Copy fastas with reading frames to alignment directory
+cp -r frame/m4_frame alignment/m1_raw
+cp -r frame/n4_frame alignment/n1_raw
+cp -r frame/r1_raw/ alignment
+
+cd alignment
+
+# Add directories for further processing
+mkdir n2_aa n3_aaal n4_ntal m2_aa m3_aaal m4_ntal r4_ntal
+
 
 cat << p
 
@@ -337,56 +328,51 @@ Translate to Protein
 --------------------
 p
 
-# Nuclear genes
-for file in n1_raw/*
-do
-  echo 'translate' $file
-  translate.py 1 < $file > n2_aa/${file#*/}
-done
-
 # Mitochondrial genes
 for file in m1_raw/*
 do
   echo 'translate' $file
-  translate.py 5 < $file > m2_aa/${file#*/}
+   github/biotools/translate.py 5 < $file > m2_aa/${file#*/}
 done
+
+# Nuclear genes
+for file in n1_raw/*
+do
+  echo 'translate' $file
+   github/biotools/translate.py 1 < $file > n2_aa/${file#*/}
+done
+
 
 cat << p
 
------------------
-Align to profiles
------------------
+----------------
+Align to Profile
+----------------
 p
-# Adjust mafft parameters and thread count as necessary
 
 # Mitochondrial
 for file in m2_aa/*
 do
   echo $file
-  mafft --add $file --maxiterate 2 --adjustdirection --thread 12 profiles/aa/${file#*/} >  m3_aaal/${file#*/}
+  mafft --add $file --maxiterate 2 --adjustdirection --thread 8 profiles/0_AA_profiles/${file#*/} >  m3_aaal/${file#*/}
 done
 
 # Nuclear
 for file in n2_aa/*
 do
   echo $file
-  mafft --add $file --maxiterate 2 --adjustdirection --thread 12 profiles/aa/${file#*/} >  n3_aaal/${file#*/}
+  mafft --add $file --maxiterate 2 --adjustdirection --thread 8 profiles/0_AA_profiles/${file#*/} >  n3_aaal/${file#*/}
 done
 
 # RNA
 for file in r1_raw/*
 do
   echo $file
-  mafft --add $file --maxiterate 2 --adjustdirection --thread 12 profiles/nt/${file#*/} >  r4_ntal/${file#*/}
+  mafft --add $file --maxiterate 2 --adjustdirection --thread 8 profiles/0_AA_profiles/${file#*/} >  r4_ntal/${file#*/}
 done
 
 
-cat << p
-
----------------
-Remove Profiles
----------------
-p
+# Remove profile
 
 cd m3_aaal
 for file in *
@@ -418,6 +404,7 @@ do
 done
 cd ..
 
+
 cat << p
 
 ---------------------------------
@@ -428,216 +415,38 @@ p
 # Mitochondrial
 for file in m3_aaal/*
 do
-  echo $file
-  backtranslate.py -i $file m1_raw/${file#*/} 5 > m4_ntal/${file#*/}
+  echo $fileStothard Road
+  github/biotools/backtranslate.py -i $file m1_raw/${file#*/} 5 > m4_ntal/${file#*/}
 done
 
 # Nuclear
 for file in n3_aaal/*
 do
   echo $file
-  backtranslate.py -i $file n1_raw/${file#*/} 5 > n4_ntal/${file#*/}
+  github/biotools/backtranslate.py -i $file n1_raw/${file#*/} 5 > n4_ntal/${file#*/}
 done
 
-# Tidy up sequence ends and remove duplicates
-for file in m4_ntal/*
-do
-  base=$(basename $file)
-  fasta_dups_length.py -i $file -o m4_ntal/$base.f -l -d
-  mv m4_ntal/$base.f m4_ntal/$base
-done
 
-for file in n4_ntal/*
-do
-  base=$(basename $file)
-  fasta_dups_length.py -i $file -o n4_ntal/$base.f -l -d
-  mv n4_ntal/$base.f n4_ntal/$base
-done
-
-for file in r4_ntal/*
-do
-  base=$(basename $file)
-  fasta_dups_length.py -i $file -o r4_ntal/$base.f -l -d
-  mv r4_ntal/$base.f r4_ntal/$base
-done
+###########################################################
+# Manual check and cleaning of alignments                 #
+# Split COX1 fasta into COX1a and COX1b before proceeding #
+###########################################################
 
 
 cat << p
 
-----------------
-Clean Alignments
-----------------
+---------------------------------
+Prepare sequences for supermatrix
+---------------------------------
 p
-
-# Adjust CIAlign parameters as necessary
-
-mkdir m5_aa_cia m6_nt_cia n5_aa_cia n6_nt_cia r6_nt_cia
-
-for file in m3_aaal/*; do
-  echo $file
-  base=$(basename $file)
-  if [[ $base == ATP8.fasta ]]; then
-    CIAlign --infile $file --outfile_stem m5_aa_cia/${base%.fasta} --remove_divergent --remove_divergent_minperc 0.5
-  else
-    CIAlign --infile $file --outfile_stem m5_aa_cia/${base%.fasta} --remove_divergent --remove_divergent_minperc 0.5 --crop_divergent --crop_divergent_min_prop_nongap 0.1 --remove_insertions
-  fi
-done
-
-for file in m4_ntal/*; do
-  echo $file
-  base=$(basename $file)
-  if [[ $base == ATP8.fasta ]]; then
-    CIAlign --infile $file --outfile_stem m6_nt_cia/${base%.fasta} --remove_divergent --remove_divergent_minperc 0.6 --crop_divergent --crop_divergent_min_prop_nongap 0.1 --remove_insertions
-  else
-    CIAlign --infile $file --outfile_stem m6_nt_cia/${base%.fasta} --remove_divergent --remove_divergent_minperc 0.65 --crop_divergent --crop_divergent_min_prop_nongap 0.1 --remove_insertions
-  fi
-done
- 
-for file in n3_aaal/*
-do
-  echo $file
-  base=$(basename $file)
-  CIAlign --infile $file --outfile_stem n5_aa_cia/${base%.fasta} --remove_divergent --remove_divergent_minperc 0.5 --crop_divergent --crop_divergent_min_prop_nongap 0.1 --remove_insertions
-done
-
-for file in n4_ntal/*
-do
-  echo $file
-  base=$(basename $file)
-  CIAlign --infile $file --outfile_stem n6_nt_cia/${base%.fasta} --remove_divergent --remove_divergent_minperc 0.65 --crop_divergent --crop_divergent_min_prop_nongap 0.1 --remove_insertions
-done
-
-for file in r4_ntal/*
-do
-  echo $file
-  base=$(basename $file)
-  CIAlign --infile $file --outfile_stem r6_nt_cia/${base%.fasta} --remove_divergent --remove_divergent_minperc 0.65 --crop_divergent --crop_divergent_min_prop_nongap 0.1 --remove_insertions
-done
-
-
-# Split COX1 into COX1a and COX1b
-# Do this manually instead if you prefer
-
-cd m6_nt_cia
-awk '
-/^>/ {  # When encountering a header line
-    if (NR > 1) {  # For all except the first header line
-        if (length(seq) > 0 && !is_all_gaps(seq)) {  # Only process non-empty sequences that are not all gaps
-            print_seq("COX1a.fasta", "COX1b.fasta", header, seq)
-        }
-    }
-    header = $0  # Save the header
-    seq = ""  # Reset the sequence
-    next
-}
-{
-    seq = seq $0  # Append sequence lines
-}
-END {
-    if (length(seq) > 0 && !is_all_gaps(seq)) {  # Process the last sequence if it is not all gaps
-        print_seq("COX1a.fasta", "COX1b.fasta", header, seq)
-    }
-}
-
-function print_seq(file1, file2, header, seq,    len1, len2) {
-    len1 = 720
-    len2 = length(seq)
-    if (len2 > len1) {
-        if (length(substr(seq, 1, len1)) > 0 && !is_all_gaps(substr(seq, 1, len1))) {  # Only write non-empty sequences that are not all gaps
-            print header > file1
-            print substr(seq, 1, len1) > file1
-        }
-        if (length(substr(seq, len1 + 1)) > 0 && !is_all_gaps(substr(seq, len1 + 1))) {  # Only write non-empty sequences that are not all gaps
-            print header > file2
-            print substr(seq, len1 + 1) > file2
-        }
-    } else {
-        if (length(seq) > 0 && !is_all_gaps(seq)) {  # Only write non-empty sequences that are not all gaps
-            print header > file1
-            print seq > file1
-        }
-    }
-}
-
-function is_all_gaps(seq,    i) {
-    for (i = 1; i <= length(seq); i++) {
-        if (substr(seq, i, 1) != "-") {
-            return 0  # Not all gaps
-        }
-    }
-    return 1  # All gaps
-}
-' COX1_cleaned.fasta
-
-cd ../m5_aa_cia
-awk '
-/^>/ {  # When encountering a header line
-    if (NR > 1) {  # For all except the first header line
-        if (length(seq) > 0 && !is_all_gaps(seq)) {  # Only process non-empty sequences that are not all gaps
-            print_seq("COX1a.fasta", "COX1b.fasta", header, seq)
-        }
-    }
-    header = $0  # Save the header
-    seq = ""  # Reset the sequence
-    next
-}
-{
-    seq = seq $0  # Append sequence lines
-}
-END {
-    if (length(seq) > 0 && !is_all_gaps(seq)) {  # Process the last sequence if it is not all gaps
-        print_seq("COX1a.fasta", "COX1b.fasta", header, seq)
-    }
-}
-
-function print_seq(file1, file2, header, seq,    len1, len2) {
-    len1 = 250
-    len2 = length(seq)
-    if (len2 > len1) {
-        if (length(substr(seq, 1, len1)) > 0 && !is_all_gaps(substr(seq, 1, len1))) {  # Only write non-empty sequences that are not all gaps
-            print header > file1
-            print substr(seq, 1, len1) > file1
-        }
-        if (length(substr(seq, len1 + 1)) > 0 && !is_all_gaps(substr(seq, len1 + 1))) {  # Only write non-empty sequences that are not all gaps
-            print header > file2
-            print substr(seq, len1 + 1) > file2
-        }
-    } else {
-        if (length(seq) > 0 && !is_all_gaps(seq)) {  # Only write non-empty sequences that are not all gaps
-            print header > file1
-            print seq > file1
-        }
-    }
-}
-
-function is_all_gaps(seq,    i) {
-    for (i = 1; i <= length(seq); i++) {
-        if (substr(seq, i, 1) != "-") {
-            return 0  # Not all gaps
-        }
-    }
-    return 1  # All gaps
-}
-' COX1_cleaned.fasta
-cd ..
-
-
-# Check alignment files before proceeding
-
-
-cat << p
-
--------------------------
-Get ready for supermatrix
--------------------------
-p
-
 
 mkdir ../supermatrix
 mkdir ../supermatrix/aa
 mkdir ../supermatrix/nt
 
-# Copy aligned files to aa and nt directories for futher processing
+cp m3_aaal/*fasta n3_aaal/*fasta r4_ntal/*fasta ../supermatrix/aa
+cp m4_ntal/*fasta n4_ntal/*fasta r4_ntal/*fasta ../supermatrix/nt
+
 cp m5_aa_cia/*fasta n5_aa_cia/*fasta r6_nt_cia/*fasta ../supermatrix/aa
 cp m6_nt_cia/*fasta n6_nt_cia/*fasta r6_nt_cia/*fasta ../supermatrix/nt
 
@@ -647,18 +456,18 @@ cd ../supermatrix
 # Remove frame tags
 for file in aa/*
 do
-   sed -i -E "s/;frame=[0-9]*(;$)?//" $file
+  sed -i -E "s/;frame=[0-9]*(;$)?//" $file
 done
 echo "Frame tags removed from files in aa"
 
 for file in nt/*
 do
-   sed -i -E "s/;frame=[0-9]*(;$)?//" $file
+  sed -i -E "s/;frame=[0-9]*(;$)?//" $file
 done
 echo "Frame tags removed from files in nt"
 
 
-# Remove _R_ prefix from reversed sequences
+# Remove _R_ from reversed sequences
 for file in aa/*
 do
    sed -i -E "s/^>_R_/>/" $file
@@ -670,119 +479,62 @@ do
 done
 
 
-# Combine metadata
+cat << p
 
-cd ..
+-----------------------
+Rename with NCBI taxids
+-----------------------
+p
 
-Rscript combine_metadata.R -b bold/metadata.csv -g genbank/metadata.csv -l lab/lab.ids -o outgroup/outgroup.ids -m ../SITE-100_Database_mitogenomes_240731.csv -c supermatrix/rename.csv
-
-cd supermatrix
-
-
-# Rename sequences with NCBI taxon IDs and taxonomy
+# Rename sequences with ncbi taxids
 
 mkdir ids_aa ids_nt
-for file in nt/*
-do
-  base=$(basename $file)
-  python3 rename_fasta.py -i $file -c rename.csv -r ids_nt/${base%fasta}csv -o nt/$base.r
-  mv nt/${base#*/}.r nt/${base#*/}
-done
 
 for file in aa/*
 do
   base=$(basename $file)
-  python3 rename_fasta.py -i $file -c rename.csv -r ids_aa/${base%fasta}csv -o aa/$base.r
+  python3 github/voglerlab/rename_fasta.py -i $file -c github/voglerlab/metadata/rename_list_ref_taxid.csv -l -r ids_aa/${base%fasta}csv -o aa/$base.r
   mv aa/${base#*/}.r aa/${base#*/}
 done
 
-
-# Remove sequences without COI, if desired
-# Remove sequences without barcodes by filter using COX1a.fasta instead of COX1_cleaned.fasta
-
-mkdir aa_coi nt_coi
-
-for file in aa/*
-do
-  echo $file
-  python3 filter_fasta.py -i $file -s aa/COX1_cleaned.fasta -t fasta -f aa_coi/${file#*/}
-  # Remove gap only columns
-  degap_fasta_alignment.pl aa_coi/${file#*/} > aa_coi/${file#*/}.g
-  mv aa_coi/${file#*/}.g aa_coi/${file#*/}
-done
-
 for file in nt/*
 do
-  echo $file
-  python3 filter_fasta.py -i $file -s aa/COX1_cleaned.fasta -t fasta -f nt_coi/${file#*/}
-  # Remove gap only columns
-  degap_fasta_alignment.pl nt_coi/${file#*/} > nt_coi/${file#*/}.g
-  mv nt_coi/${file#*/}.g nt_coi/${file#*/}
+  base=$(basename $file)
+  python3 github/voglerlab/rename_fasta.py -i $file -c github/voglerlab/metadata/rename_list_ref_taxid.csv -l -r ids_nt/${base%fasta}csv -o nt/$base.r
+  mv nt/${base#*/}.r nt/${base#*/}
 done
 
-rm */COX1_cleaned.fasta
+# Write gene source CSVs
+Rscript github/voglerlab/merge_ptp_csv.R -d ids_aa/ -o ids_aa.csv
+Rscript github/voglerlab/merge_ptp_csv.R -d ids_nt/ -o ids_nt.csv
 
+# Write nucleotide supermatrix
+github/catfasta2phyml/catfasta2phyml.pl -c -fasta nt/* > 1_nt_supermatrix.fasta 2> 1_cfnt_partitions.txt
 
-# Delete files with less than 10 sequences
+# Convert partition files to RAxML format (GTR model)
+python3 github/voglerlab/partitions.py -i 1_cfnt_partitions.txt -t nt -o raxml -p 1
 
-for file in aa_coi/*
-do
-  sequence_count=$(grep -c "^>" "$file")
-  # Check if the sequence count is less than 10
-  if (( sequence_count < 10 )); then
-    echo "Deleting $file, as it contains only $sequence_count sequences"
-    rm "$file"
-  fi2533
-done
-
-for file in nt_coi/*
-do
-  sequence_count=$(grep -c "^>" "$file")
-  # Check if the sequence count is less than 10
-  if (( sequence_count < 10 )); then
-    echo "Deleting $file, as it contains only $sequence_count sequences"
-    rm "$file"
-  fi
-done
-
-
-cat << p
-
---------------------------------------
-Create supermatrix and partition files
---------------------------------------
-p
-
-# Supermatrix
-catfasta2phyml.pl -c -fasta aa_coi/* > 1_aa_coi_supermatrix.fasta 2> 1_aa_coi_partitions.txt
-catfasta2phyml.pl -c -fasta nt_coi/* > 2_nt_coi_supermatrix.fasta 2> 2_nt_coi_partitions.txt
-
-
-# Change partition files to RAXML compatible format
-# Change models as desired
-python3 ~/scratch/github/genbank/partitions.py -i 1_aa_coi_partitions.txt -t aa -o raxml
-python3 ~/scratch/github/genbank/partitions.py -i 2_nt_coi_partitions.txt -t nt -o raxml
-
-# Check supermatrices and partition files before proceeding to phylogeny
+# Write gene representation CSV
+python3 github/voglerlab/supermatrix_count.py -f 1_nt_supermatrix.fasta -p 1_cfnt_partitions.txt -o nt.csv
 
 cd ..
 
-
 cat << p
 
------------------
-Initial Phylogeny
------------------
+------------------------------------------
+Initial phylogeny for species delimitation
+------------------------------------------
 p
 
 mkdir mptp
 
-# Adjust threads as needed
-# To check how many threads you need, run:
-#    raxml-ng --parse --msa supermatrix/2_nt_coi_supermatrix.fasta --prefix mptp/parse --model supermatrix/partitions_gene.txt
+# Check required memory/threads
+raxml-ng --parse --msa supermatrix/1_nt_supermatrix.fasta --prefix mptp/search1 --model supermatrix/1_partitions_gene.txt
 
-raxml-ng --search1 --msa supermatrix/2_nt_coi_supermatrix.fasta --prefix mptp/search1 --model supermatrix/partitions_gene.txt --threads 8
+# Ran phylogeny with single starting tree
+raxml-ng --search1 --msa supermatrix/1_nt_supermatrix.fasta --prefix mptp/search1 --model supermatrix/1_partitions_gene.txt --threads number_threads
 
+# Run modelfinder at this stage as well?
 
 cat << p
 
@@ -791,70 +543,299 @@ mPTP Species Delimitation
 -------------------------
 p
 
-# Requires file with comma separated list of outgroup taxa
-
 cd mptp
+
+# Remove excessively long branches
+run_treeshrink.py -t search1.raxml.bestTree
+
+# Add taxonomy to tree/supermatrix at this stage to ease analysis of result
+python3 github/voglerlab/rename_fasta.py -i ../supermatrix/1_nt_supermatrix.fasta -o ../supermatrix/1_tax_nt_supermatrix.fasta -c metadata/rename_taxid_taxonomy.csv
+Rscript github/voglerlab/rename_tree.R -i search1.raxml_treeshrink/output.bestTree -o tax.treeshrink.tree -c metadata/rename_taxid_taxonomy.csv
+
+# Filter supermatrix to keep taxa remaining after treeshirink
+python3 github/voglerlab/filter_fasta.py -i ../../supermatrix/1_tax_nt_supermatrix.fasta -f supermatrix.fasta -s tax.treeshrink.tree -t tree
+
+# Requires file with comma separated list of outgroup taxa
 # Get outgroup
 outgroup=$(awk 'NR==1' outgroup.txt)
 
 # Calculate minbr value
 echo "Getting minbr value"
-mptp --minbr_auto ../supermatrix/2_nt_coi_supermatrix.fasta --tree_file search1.raxml.bestTree --output_file minbr  --outgroup $outgroup
+mptp --minbr_auto supermatrix.fasta --tree_file tax.treeshrink.tree --output_file minbr  --outgroup $outgroup
 
 # Copy minbr value from slurm output
 minbr=$(awk 'END {print $NF}' minbr.txt)
 echo "minbar value = " $minbr
 
-# Run single rate mPTP
+# Run PTP
 echo "Running mPTP"
-mptp --ml --single --minbr $minbr --tree_file search1.raxml.bestTree --output_file mptp  --outgroup $outgroup
+mptp --ml --single --minbr $minbr --tree_file tax.treeshrink.tree --output_file mptp  --outgroup $outgroup
 
-# Add multi-rate mPTP and MCMC sampling if needed
+# Run MCMC sampling to determine statistical significance
+echo "
+Running MCMC"
+mptp --mcmc 1000000 --mcmc_sample 1000 --mcmc_log 1000 --mcmc_runs 2 --multi --minbr $minbr --tree_file tax.treeshrink.tree --output_file mcmc
+cd ..
 
-# Filter taxa
+# Identify taxon with most nucleotides for each PTP species
+# Use -n and/or -k flags if necessary
+# -n option retains all with species level identification by checking if the last string is all lowercase, assuming the delimiter is an underscore
+# -k option accepts a text file with a list of taxa to keep (eg mitogenomes, named species)
+python3 github/voglerlab/ptp_filter_output.py -i mptp.txt -s supermatrix.fasta -o ptp_chosen.txt -n
 
-# Choose taxon with most nucleotides for each PTP species
-python3 ptp_filter_output.py -i mptp.txt -s ../supermatrix/2_nt_coi_supermatrix.fasta -o ptp_chosen.txt
-# Filter supermatrix
-python3 filter_fasta.py -i ../supermatrix/2_nt_coi_supermatrix.fasta -f ../supermatrix/2_nt_coi_ptp_supermatrix.fasta -s ptp_chosen.txt -t list
+
+# Filter sequence files using PTP output
+cd ../supermatrix
+
+mkdir 2_aa_ptp 2_nt_ptp
+
+for file in aa/*
+do
+  echo $file
+  python3 github/voglerlab/filter_fasta.py -i $file -s ../mptp/ptp_chosen.txt -t list -f 2_aa_ptp/${file#*/}
+  #Remove gap only columns
+  echo 'Removing gap-only columns'
+  github/fastagap/degap_fasta_alignment.pl 2_aa_ptp/${file#*/} > 2_aa_ptp/${file#*/}.g
+  mv 2_aa_ptp/${file#*/}.g 2_aa_ptp/${file#*/}
+done
+
+for file in nt/*
+do
+  echo $file
+  python3 github/voglerlab/filter_fasta.py -i $file -s ../mptp/ptp_chosen.txt -t list -f 2_nt_ptp/${file#*/}
+  # Remove gap only columns
+  echo 'Removing gap-only columns'
+  github/fastagap/degap_fasta_alignment.pl 2_nt_ptp/${file#*/} > 2_nt_ptp/${file#*/}.g
+  mv 2_nt_ptp/${file#*/}.g 2_nt_ptp/${file#*/}
+done
+
+# Write supermatrices
+github/catfasta2phyml/catfasta2phyml.pl -c -fasta 2_aa_ptp/* > 2_aa_ptp_supermatrix.fasta 2> 2_cfaa_partitions.txt
+github/catfasta2phyml/catfasta2phyml.pl -c -fasta 2_nt_ptp/* > 2_nt_ptp_supermatrix.fasta 2> 2_cfnt_partitions.txt
+python3 github/voglerlab/ry_code.py -i 2_nt_ptp_supermatrix.fasta -o 2_ry_ptp_supermatrix.fasta
+
+# Convert partition files to RAxML format
+# Modify AA models if necessary
+python3 github/voglerlab/partitions.py -i 2_cfaa_partitions.txt -t aa -o raxml -p 2_ptp
+python3 github/voglerlab/partitions.py -i 2_cfnt_partitions.txt -t nt -o raxml -p 2_ptp
+
+# Write gene representation CSV
+python3 github/voglerlab/rename_fasta.py -i 2_nt_ptp_supermatrix.fasta -o 2_tax_nt_ptp_supermatrix.fasta -c github/voglerlab/metadata/rename_taxid_taxonomy.csv
+python3 github/voglerlab/supermatrix_count.py -f 2_tax_nt_ptp_supermatrix.fasta -p 2_cfnt_partitions.txt -o 2_nt_ptp.csv
+
+
+cat << p
+
+-------------------------------
+Choose taxa for constraint tree
+-------------------------------
+p
+
+# Probably can skip this section, and instead use subtrees from the 13K tree as constraint
+
+
+# # Decide on constraint taxa and write backbone.ids file
+# mkdir 3_aa_con 3_nt_con
+
+# for file in 2_aa_ptp/*
+# do
+#   echo $file
+#   python3 github/voglerlab/filter_fasta.py -i $file -s backbone.ids -t list -f 3_aa_con/${file#*/}
+#   #Remove gap only columns
+#   echo 'Removing gap-only columns'
+#   github/fastagap/degap_fasta_alignment.pl 3_aa_con/${file#*/} > 3_aa_con/${file#*/}.g
+#   mv 3_aa_con/${file#*/}.g 3_aa_con/${file#*/}
+# done
+
+# for file in 2_nt_ptp/*
+# do
+#   echo $file
+#   python3 github/voglerlab/filter_fasta.py -i $file -s backbone.ids -t list -f 3_nt_con/${file#*/}
+#   # Remove gap only columns
+#   echo 'Removing gap-only columns'
+#   github/fastagap/degap_fasta_alignment.pl 3_nt_con/${file#*/} > 3_nt_con/${file#*/}.g
+#   mv 3_nt_con/${file#*/}.g 3_nt_con/${file#*/}
+# done
+
+# # Write supermatrix
+# github/catfasta2phyml/catfasta2phyml.pl -c -fasta 3_aa_con/* > 3_aa_con_supermatrix.fasta 2> 3_cfaa_partitions.txt
+# github/catfasta2phyml/catfasta2phyml.pl -c -fasta 3_nt_con/* > 3_nt_con_supermatrix.fasta 2> 3_cfnt_partitions.txt
+
+# python3 github/voglerlab/ry_code.py -i 3_nt_con_supermatrix.fasta -o 3_ry_con_supermatrix.fasta
+# python3 github/voglerlab/ry_code.py -i 3_nt_con_supermatrix.fasta -o 3_bin_con_supermatrix.fasta -n
+
+# # Convert partition files to RAxML format
+# python3 github/voglerlab/partitions.py -i 3_cfaa_partitions.txt -t aa -o raxml -p 3_con
+# python3 github/voglerlab/partitions.py -i 3_cfnt_partitions.txt -t nt -o raxml -p 3_con
+# python3 github/voglerlab/partitions.py -i 3_cfnt_partitions.txt -t bin -o raxml -p 3_con
+
 
 cd ..
 
 
 cat << p
 
------
-RAxML
------
+-------------------
+Run constraint tree
+-------------------
 p
+
 
 mkdir raxml
 cd raxml
 
+# Get random number seed for RAxML and save to slurm output
+seed=$RANDOM
+echo 'RAxML random number seed = '$seed
+
 # Run RaxML
-raxml-ng --search1 --msa ../supermatrix/2_nt_coi_ptp_supermatrix.fasta --model ../supermatrix/partitions_gene.txt --prefix ptp_search1 --threads 8
+raxml-ng --msa supermatrix/3_nt_con_supermatrix.fasta --model supermatrix/3_con_partitions_codon.txt --prefix raxml/con_codon --threads 8 --seed $seed
+raxml-ng --msa supermatrix/3_ry_con_supermatrix.fasta --model supermatrix/3_con_partitions_codon.txt --prefix raxml/con_codon --threads 8 --seed $seed
+raxml-ng --msa supermatrix/3_bin_con_supermatrix.fasta --model supermatrix/3_con_partitions_bin_codon.txt --prefix raxml/con_codon --threads 8 --seed $seed
+raxml-ng --msa supermatrix/3_aa_con_supermatrix.fasta --model supermatrix/3_con_partitions_aa.txt --prefix raxml/con_aa --threads 8 --seed $seed
+
+
+cat << p
+
+--------
+RAxML full tree
+--------
+p
+
+# Or run first with onl taxa with barcodes?
+
+seed=$RANDOM
+echo "Random Seed:" $RANDOM
+
+mkdir ml_nt_codon 
+raxml-ng --msa ../supermatrix/2_nt_ptp_supermatrix.fasta --model ../supermatrix/ptp_partitions_codon.txt --prefix ml_nt_codon --threads 8 --seed $seed --force perf_threads
+
+mkdir ml_aa
+raxml-ng --msa ../supermatrix/1_aa_ptp_supermatrixconstrai.fasta --model ../supermatrix/ptp_partitions_aa.txt --prefix ml_aa --threads 8 --seed $seed --force perf_threads
+
+# Make RY supermatrix
+mkdir ml_ry_codon
+raxml-ng --msa ../supermatrix/3_ry_ptp_supermatrix.fasta --model ../supermatrix/ptp_partitions_codon.txt --prefix ml_ry_codon --threads 8 --seed $seed --force perf_threads
 
 # Remove long branches
-run_treeshrink.py -t ptp_search1.raxml.bestTree -o treeshrink
+outgroup=$(awk 'NR==1' outgroup.txt)
+run_treeshrink.py -t input_tree -c -x outgroup_taxa_list -q 0.5 
 
-# Check trees
-# Remove more long branches if necessary using filter_tips.R, then filter supermatrix
 
+# Check taxonomic indices
+
+python3 ~/github/voglerlab/supermatrix_count.py -i ../supermatrix/2_nt_coi_ptp_ts_supermatrix.fasta -p ../supermatrix/2_nt_coi_partitions.txt -o ../supermatrix/2_nt_coi_ptp_ts.csv -t
+
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	2_con_aa.raxml.bestTree	-t	../tri_taxonomy.csv	-a	tri_2_con_aa.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	2_con_nt.raxml.bestTree	-t	../tri_taxonomy.csv	-a	tri_2_con_nt.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	2_con_ry.raxml.bestTree	-t	../tri_taxonomy.csv	-a	tri_2_con_ry.csv		-l	tribe
+
+Rscript ~/github/voglerlab/taxind_cat.R * taxind.csv
+
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	aa_ck_coi.raxml_treeshrink/output.bestTree	-t	../tri_taxonomy.csv	-a	tri_aa_ck_coi.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	aa_con10.raxml_treeshrink/output.bestTree	-t	../tri_taxonomy.csv	-a	tri_aa_con10.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	aa_conmt2.raxml_treeshrink/output.bestTree	-t	../tri_taxonomy.csv	-a	tri_aa_conmt2.csv		-l	tribe
+
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	aa_ck_coi.raxml_treeshrink/output.bestTree	-t	../tri_taxonomy.csv	-a	tri_aa_ck_coi.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	aa_con10.raxml_treeshrink/output.bestTree	-t	../tri_taxonomy.csv	-a	tri_aa_con10.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	aa_conmt2.raxml_treeshrink/output.bestTree	-t	../tri_taxonomy.csv	-a	tri_aa_conmt2.csv		-l	tribe
+
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	tax.aa_ck_coi.raxml.bestTree	-t	../../rename_tree.csv	-a	aa_ck_coi.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	tax.aa_con10.raxml.bestTree	-t	../../rename_tree.csv	-a	aa_con10.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	tax.aa_conmt2.raxml.bestTree	-t	../../rename_tree.csv	-a	aa_conmt2.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	tax.codon_ck_coi.raxml.bestTree	-t	../../rename_tree.csv	-a	codon_ck_coi.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	tax.fcon_full.raxml.bestTree	-t	../../rename_tree.csv	-a	fcon_full_aa.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	tax.full.raxml.bestTree	-t	../../rename_tree.csv	-a	full_aa.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	tax.nt_ck_coi.raxml.bestTree	-t	../../rename_tree.csv	-a	nt_ck_coi.csv		-l	tribe
+Rscript	~/github/phylostuff/taxonomicindices.R	-p	tax.ry_ck_coi.raxml.bestTree	-t	../../rename_tree.csv	-a	ry_ck_coi.csv		-l	tribe
+
+for file in *tbe*support
+do
+  Rscript ~/github/phylostuff/taxonomicindices.R  -p $file -t ../../taxonomy250416.csv -a subfamily.${file%tbe.support}csv -l subfamily
+done
+
+Rscript ~/github/voglerlab/taxind_cat.R -d . -o subfamily_taxindices.csv
+
+
+
+# Bootstrap
+
+#!/bin/bash
+#SBATCH --job-name=boot_codon
+#SBATCH --cpus-per-task=6
+#SBATCH --array=1-500
+#SBATCH -p short
+
+seed=$RANDOM
+echo "Random Seed: $RANDOM_SEED"
+3898
+mkdir boot_mito_codon
+raxml-ng --bootstrap --msa ../supermatrix/nt_con_mito_supermatrix.fasta --model ../supermatrix/con_mito_partitions_codon.txt --prefix boot_mito_codon/$SLURM_ARRAY_TASK_ID.boot --seed $seed --bs-trees 1 --threads 6 --force perf_threads
+
+# Check for convergence
+cat boot_mito_codon/*bootstraps > all_codon.bootstraps
+raxml-ng --bsconverge --bs-trees all_codon.bootstraps --prefix boot_mito_codon --seed 2
+# Add support values to tree
+raxml-ng --support --tree ntcon_mito/ntcon_mito.bestTree --bs-trees all_codon.bootstraps --prefix ntcon_mito/boot
+# Strict consensus
+raxml-ng --consense STRICT  --tree all_codon.bootstraps --prefix ntcon_mito/strict_boot
+# Majority rule consensus
+raxml-ng --consense MR  --tree all_codon.bootstraps --prefix ntcon_mito/majority_boot
+
+# Check for convergence
+cat boot_mito_aa/*bootstraps > all_aa.bootstraps
+raxml-ng --bsconverge --bs-trees all_aa.bootstraps --prefix boot_mito_aa --seed 2
+# Add support values to tree
+raxml-ng --support --tree aacon_mito/aacon_mito.bestTree --bs-trees all_aa.bootstraps --prefix aacon_mito/boot
+#TBE
+raxml-ng --support --tree aacon_mito/aacon_mito.bestTree --bs-trees all_aa.bootstraps --prefix aacon_mito/boot --bs-metric tbe
+
+# Strict consensus
+raxml-ng --consense STRICT  --tree all_aa.bootstraps --prefix aacon_mito/strict_boot
+# Majority rule consensus
+raxml-ng --consense MR  --tree all_aa.bootstraps --prefix aacon_mito/majority_boot
+
+
+cat << p
+
+----
+MEGA
+----
+p
+
+# Make MPC supermatrix
+cd supermatrix
+cp -r nt_coi nt_coi_mpc
+cd nt_coi_mpc
+rm 1* 2* AK* CA* H* R* W*
+cd ../..
+github/catfasta2phyml/catfasta2phyml.pl -c -fasta supermatrix/nt_coi_mpc/* > dating/2_nt_mpc_supermatrix.fasta 2> dating/2_nt_mpc_partitions.txt
+
+
+# Copy best ML tree to dating directory
 # Filter supermatrix
-python3 filter_fasta.py -i ../supermatrix/2_nt_coi_supermatrix.fasta -f ../supermatrix/2_nt_coi_ptp_ts_supermatrix.fasta -s treeshrink/output.bestTree -t tree
-python3 filter_fasta.py -i ../supermatrix/1_aa_coi_supermatrix.fasta -f ../supermatrix/1_aa_coi_ptp_ts_supermatrix.fasta -s treeshrink/output.bestTree -t tree
-python3 ry_code.py -i ../supermatrix/2_nt_coi_ptp_ts_supermatrix.fasta -o ../supermatrix/3_ry_coi_ptp_ts_supermatrix.fasta
+cd dating
+python3 github/voglerlab/filter_fasta.py -i 2_nt_mpc_supermatrix.fasta -f mpc_supermatrix.fasta -s ml_nt_codon.bestTree -t tree
 
-# Proceed with tree search with chosen supermatrices and partition schemes
+# Format outgroup and calibration files
+sed 's/,/\n/g' ../mptp/outgroup.txt | awk '{print $0 "=outgroup"}' > outgroup.txt
+sed -i -E 's/_{2,5}/_/g' outgroup.txt
+sed -i -E 's/_{2,5}/_/g' crown.txt
 
-# Eg:
-# Nucleotide, gene partitions
-raxml-ng --msa ../supermatrix/2_nt_coi_ptp_ts_supermatrix.fasta --model ../supermatrix/partitions_gene.txt --prefix ml_nt_gene --threads 8
-# Nucleotide, codon partitions
-raxml-ng --msa ../supermatrix/2_nt_coi_ptp_ts_supermatrix.fasta --model ../supermatrix/partitions_codon123.txt --prefix ml_nt_codon --threads 8
-# Protein, gene partitions
-raxml-ng --msa ../supermatrix/1_aa_coi_ptp_ts_supermatrix.fasta --model ../supermatrix/partitions_aa.txt --prefix ml_aa --threads 8
-# RY code, gene partitions
-raxml-ng --msa ../supermatrix/3_ry_coi_ptp_ts_supermatrix.fasta --model ../supermatrix/partitions_gene.txt --prefix ml_ry_gene --threads 8
-# RY code, codon partitions
-raxml-ng --msa ../supermatrix/3_ry_coi_ptp_ts_supermatrix.fasta --model ../supermatrix/partitions_codon123.txt --prefix ml_ry_codon --threads 8
+# Run RelTIme
+apptainer exec --bind /mnt/shared/apps/ascott/ --no-mount /etc/localtime megacc.sif megacc -a ../../reltime_ml_nucleotide.mao -c crown.txt -d mpc_supermatrix.fasta -f Fasta -o uniform -t *bestTree -g outgroup.txt
+
+
+
+cat << p
+
+----
+BAMM
+----
+p
+
+mkdir bamm
+cd bamm
+Rscript github/voglerlab/bamm_tree_input.R -i ../dating/uniform_exactTimes.nwk -o bamm.tree
+
+

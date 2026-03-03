@@ -59,6 +59,8 @@ def filter_to_reference(records):
     start = next((i for i, c in enumerate(reference.seq) if c != '-'), None)
     end = len(reference.seq) - next((i for i, c in enumerate(reversed(reference.seq)) if c != '-'), None)
     ref_length = end - start
+    print('Reference length:', ref_length)
+    records = [rec for rec in records if 'reference' != rec.id]
 
     # Filter seqeunces
     output = []

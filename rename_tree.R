@@ -1,27 +1,30 @@
 library(ape)
 library(getopt)
-library(dplyr)
+library(tidyverse)
 
 # Define the command-line arguments
 spec <- matrix(c(
   'input',    'i', 1, 'character', 'Input tree file',
   'nexus',    'n', 2, 'logical',   'Input tree is nexus (default newick)',
   'csv',      'c', 2, 'character', 'Metadata CSV. Specify custom labels with -l flag, or default assumes new names in first column, old names in second',
-  'tips',     't', 2, 'character', 'Column name with original tip names (if not first column)',
+  'tips',     't', 2, 'character', 'Column name with original tip names (default second column)',
   'label',    'l', 2, 'character', 'Custom labels: specify columns to use in labels: comma separated column names in order
                                     Default without this option is new names in first column, old names in second column',
   'output',   'o', 1, 'character', 'Output tree file',
-  'drop_old', 'd', 2, 'logical',   'Drop original tip names (default keep old name at start of new name)'
+  'renamed',  'r', 2, 'logical',   'CSV output with old and new tips names',
+  'drop_old', 'd', 2, 'logical',   'Drop original tip names (default keep old name at start of new name)',
+  'prefix',   'p', 2, 'character', 'Add specified string to the start of all labels'
 ), byrow = TRUE, ncol = 5)
 opt <- getopt(spec)
 
-# setwd('/home/aileen/onedrive/treebuilding/13Ktree/gmt/raxml')
+# setwd('/home/aileen/onedrive/treebuilding/241115carabidae/bayes/')
 # opt <- data.frame(
-#   input = c('gmt13_coipart_nt.raxml_treeshrink/output.bestTree'),
-#   csv = c('~/onedrive/treebuilding/metadata/mmg_test.csv'),
-#   label = c('superfamily,family,subfamily,tribe,genus,species,morphospecies'),
-#   output = c('test.tree'),
-#   tips = c('lab_id')
+#   input = c('backup/vas_mito_ry.nexus.con.tre'),
+#   csv = c('/home/aileen/onedrive/treebuilding/241115carabidae/metadata/taxonomy.csv'),
+#   label = ('tree_family,tree_subfamily,tree_tribe,tree_subtribe,tree_genus,tree_species,tree_subspecies'),
+#   output = c('backup/tax.vas_mito_ry.nexus.con.tre'),
+#   tips = c('tree_id'),
+#   nexus = T
 # )
 
 # Function to strip quotes if present
@@ -32,6 +35,18 @@ strip_quotes <- function(x) {
 # Load the tree and CSV data
 df <- read.csv(opt$csv)
 df[is.na(df)] <- ''
+df[] <- lapply(df, as.character)
+
+# Change tip name column in label string if necessary:
+if (!is.null(opt$label)) {
+  cat("Tree will be renamed with the following column(s) from", opt$csv, ": ", opt$label, '\n')
+  if (!is.null(opt$tips)) {
+    opt$label <- str_replace(opt$label, opt$tips, 'old_id')
+  }
+} else {
+  cat("Tree will be renamed with the", colnames(df[0]), "column from", opt$csv, '\n')
+}
+
 
 if (is.null (opt$nexus)) {
   tree <- read.tree(opt$input)
@@ -39,7 +54,10 @@ if (is.null (opt$nexus)) {
   tree <- read.nexus(opt$input)
 }
 
-# Get tip names
+# tree <- read.nexus(opt$input)
+# cat("Tree has", length(tree$tip.label), "tips and", tree$Nnode, "internal nodes\n")
+
+#1 Get tip names
 tip_names <- strip_quotes(tree$tip.label)
 # Strip quotes from tree tip labels
 tree$tip.label <- strip_quotes(tree$tip.label)
@@ -59,13 +77,7 @@ if (is.null (opt$label)) {
     if (new_name != "") {
       tree$tip.label[tree$tip.label == old_name] <- new_name}
   }
-}
-
-
-# CSV with taxonomy columns
-if (!is.null (opt$label)) {
-  # Get specified metadata for labels
-  if (!is.null (opt$label)) {
+} else {
     column_names <- strsplit(opt$label, ",")[[1]]
     # Assume tip names are in first colum
     if (is.null(opt$tips)) {
@@ -80,50 +92,46 @@ if (!is.null (opt$label)) {
     }
     df <- df %>%
       filter(old_id %in% tip_names)
-    if (is.null(opt$drop_old)) {
-      df <- df %>%
-        rowwise() %>% 
-        mutate(fasta_id = paste(c(old_id, c_across(all_of(column_names))), collapse = "_")) %>% 
-        ungroup()
-    } else {
-      df <- df %>%
-        rowwise() %>% 
-        mutate(fasta_id = paste(c(c_across(all_of(column_names))), collapse = "_")) %>% 
-        ungroup()
+    # Write fasta IDs
+    df <- df %>%
+      rowwise() %>% 
+      mutate(fasta_id = ifelse(is.null(opt$drop_old),
+        paste(c(old_id, c_across(all_of(column_names))), collapse = "_"), 
+        paste(c(c_across(all_of(column_names))), collapse = "_"))) %>%
+      ungroup()
+  
+    # Add prefix
+    if (!is.null(opt$prefix)) {
+      df$fasta_id <- paste0(opt$prefix, "_", df$fasta_id)
     }
     df <- df %>%
       mutate(fasta_id = gsub("_+$", "", fasta_id)) %>%
       select(old_id, fasta_id) %>%
       unique()
-    # Get tip names from specified column
-  }
   matches <- match(tree$tip.label, df$old_id)
   tree$tip.label[!is.na(matches)] <- df$fasta_id[matches[!is.na(matches)]]
 }
 
+if (!is.null(tree$node.label)) {
+  expected <- tree$Nnode
+  actual <- length(tree$node.label)
+
+  if (actual != expected) {
+    warning(paste("PastML node.label length (", actual, ") does not match Nnode (", expected, "). Writing tree with original labels anyway.", sep = ""))
+    
+    # Optionally: truncate to expected length if needed
+    tree$node.label <- tree$node.label[1:min(expected, actual)]
+  }
+}
 
 
-# Default taxonomy labels from master_metadata.csv
-    # } else {
-  #   meta <- meta %>%
-  #     mutate(fasta_id = case_when(
-  #       suborder == 'Myxophaga' | suborder == 'Archostemata' ~ paste(ncbi_taxid, suborder, family, genus, species, subspecies, sep = '_'), # Add suborder for small suborders
-  #       family != "" ~ paste(ncbi_taxid, family, subfamily, tribe, genus, species, subspecies, sep = '_'),  # If family
-  #       !is.na(superfamily) & superfamily != "" ~ paste(ncbi_taxid, superfamily, sep = '_'), # Otherwise use lowest available rank of higher taxonomy
-  #       !is.na(infraorder) & infraorder != "" ~ paste(ncbi_taxid, infraorder, sep = '_'),
-  #       !is.na(suborder) & suborder != "" ~ paste(ncbi_taxid, suborder, sep = '_'),
-  #       TRUE ~ order  # If both family and suborder are blank
-  #     )) %>%
-  #     mutate(fasta_id = gsub("_+$", "", fasta_id)) %>%
-  #     unique() %>%
-  #     select(ncbi_taxid, rec_id, genbank_accession, bold_id, bold_bin, lab_id, order, suborder, infraorder,
-  #           superfamily,  family, subfamily, tribe, genus, subgenus, species, subspecies, species_id, fasta_id)
-  # }
-# }
 
 # Write tree
 if (is.null (opt$nexus)) {
   write.tree(tree, file=opt$output)
+  cat("Tree written to", opt$output, '\n')
 } else {
   write.nexus(tree, file=opt$output)
+  cat("Tree written to", opt$output, '\n')
 }
+

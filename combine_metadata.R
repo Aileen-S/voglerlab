@@ -81,6 +81,7 @@ if (!is.null(opt$mmg)) {
            family, subfamily, tribe, species)  %>%
     mutate(rec_id = lab_id)
 }
+#write.csv(mmg, 'SITE-100_outgroup.csv', row.names = FALSE)
 
 # # Check if each dataframe exists
 # dfs <- list(

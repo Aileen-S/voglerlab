@@ -7,7 +7,7 @@ from Bio import SeqIO
 # Argument parser
 parser = argparse.ArgumentParser(description="Count number of genes and number of bases per gene in supermatrix")
 parser.add_argument("-f", "--fasta", type=str, help="Input supermatrix fasta")
-parser.add_argument("-p", "--partitions", type=str, help="optional catfasta2phyml output partition file")
+parser.add_argument("-p", "--partitions", type=str, help="catfasta2phyml output partition file")
 parser.add_argument("-m", "--mptp", type=str, help="Optional: mPTP output txt file to add species delimitations to csv")
 parser.add_argument("-o", "--output", type=str, help="Output csv file")
 #parser.add_argument('-t', '--taxonomy', action='store_true', help='Split fasta IDs to get taxonomy in supermatrix')

@@ -1,21 +1,18 @@
-library(dplyr)
+# library(dplyr)
 library(tidyr)
-library(getopt)
 
-spec = matrix(c(
-  'directory', 'd', 1, "character", "Directory with taxonomicindices.R output CSVs",
-  'output'   , 'o', 1, "character", "Output CSV"
-), byrow=T, ncol=5)
-opt = getopt(spec)
+args <- commandArgs(trailingOnly = TRUE)
 
-# Directory containing CSV files
-setwd(opt$directory)
-directory <- getwd()
-# directory <- sub("/$", "", directory)
-getwd()
+# Check if file paths and output were provided
+if (length(args) < 2) {
+  stop("Please provide a list of CSV files and an output file as arguments")
+}
 
-# List of CSV files in the directory
-file_paths <- list.files(directory, pattern = "\\.raxml.csv$", full.names = TRUE)
+# List of CSV files as positional arguments
+file_paths <- args[1:length(args)-1]
+
+# Output file
+output <- args[length(args)]
 
 combined_df <- data.frame()
 
@@ -31,4 +28,4 @@ for (file in file_paths) {
   combined_df <- rbind(combined_df, df)
 }
 
-write.csv(combined_df, opt$output, row.names = FALSE)
+write.csv(combined_df, output, row.names = FALSE)

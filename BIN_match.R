@@ -1,3 +1,19 @@
+
+# Search for BOLD BIN matches with fasta file
+install.packages('bold')
+install.packages('seqinr')
+install.packages('urltools')
+install.packages('crul')
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("sangerseqR")
+
+install.packages("remotes")
+
+remotes::install_github("ropensci/bold")
+
 library(bold)
 library(seqinr)
 library(dplyr)
@@ -9,7 +25,7 @@ spec = matrix(c(
 ), byrow=T, ncol=5)
 opt = getopt(spec)
 
-
+# Open input fasta
 seqs <- read.fasta(opt$input)
 
 matches <- data.frame(matrix(ncol = 12, nrow = 0))
