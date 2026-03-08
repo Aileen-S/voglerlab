@@ -479,7 +479,7 @@ def main():
 
     if unrec_genes != {}:
         print("\nUnrecognised genes printed below, and to 'other_genes.csv")
-        with open("other_genes", "w") as file:
+        with open("other_genes.csv", "w") as file:
             writer = csv.writer(file)
             writer.writerow(['gene', 'count', 'records'])
             for gene, recs in unrec_genes.items():
