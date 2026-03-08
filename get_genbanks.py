@@ -8,11 +8,11 @@ from collections import Counter
 import time
 import re
 from Bio.Seq import Seq, UndefinedSequenceError
+from collections import defaultdict
 
-
-genes = {"12S": ["12S", "12S RIBOSOMAL RNA", "12S RRNA", "RRN12", "S-RRNA", "12S SMALL SUBUNIT RIBOSOMAL RNA"],
-         "16S": ["16S", "16S RIBOSOMAL RNA", "16S RRNA", "RRN16", "L-RRNA", "16S LARGE SUBUNIT RIBOSOMAL RNA"],
-         "18S": ["18S", "18S RIBOSOMAL RNA", "18S RRNA", "18S SMALL SUBUNIT RIBOSOMAL RNA", "18S SMALL SUBUNIT"],
+genes = {"12S": ["12S", "12S RIBOSOMAL RNA", "12S RRNA", "RRNS", "SSU", "RRN12", "S-RRNA", "12S SMALL SUBUNIT RIBOSOMAL RNA"],
+         "16S": ["16S", "16S RIBOSOMAL RNA", "16S RRNA", "RRNL", "LSU", "RRN16", "L-RRNA", "16S LARGE SUBUNIT RIBOSOMAL RNA"],
+         "18S": ["18S", "18S RIBOSOMAL RNA", "18S RRNA", "18S SMALL SUBUNIT RIBOSOMAL RNA"],
          "28S": ["28S", "28S RIBOSOMAL RNA", "28S RRNA", "28S LARGE SUBUNIT RIBOSOMAL RNA", "28S LARGE SUBUNIT"],
 
          "ATP6": ['ATP SYNTHASE F0 SUBUNIT 6', 'APT6', 'ATP SYNTHASE A0 SUBUNIT 6', 'ATP SYNTHASE SUBUNIT 6', 'ATP SYNTHASE FO SUBUNIT 6', 'ATPASE6', 'ATPASE SUBUNIT 6', 'ATP6'],
@@ -274,6 +274,7 @@ def find_genes(results, args):
     unrec_species = []
     x = 0  # Count taxids
 
+    gene_names = defaultdict(int)
     for rec in results:
         if args.taxon:
             if args.taxon not in rec.annotations["taxonomy"]:
@@ -291,20 +292,20 @@ def find_genes(results, args):
                 else:
                     other_type.add(type)
                 continue
-            names = get_feat_name(feature)                       # Find gene name
-            stdname = ""
+            names = get_feat_name(feature)
+            stdname = None
             for k, v in genes.items():
                 for name in names:
                     if name in v:
                         stdname = k
                         g += 1
-            if stdname == '':
+                        break
+            if not stdname:
+                gene_names[tuple(names)] += 1
                 for name in names:
-                    if name in unrec_genes:
-                        unrec_genes[name].append(rec.name)
-                    else:
-                        unrec_genes[name] = [rec.name]
-                continue
+                    stdname = name.replace(" ", "_")
+                    stdname = re.sub(r'[/.\"\']', '', stdname)
+                    break
             if args.mito:
                 if stdname not in mito:
                     continue
@@ -337,7 +338,12 @@ def find_genes(results, args):
                 x += 1
         if g == 0:
             nohits.append(rec.name)
-    return (meta, seqs, nohits, other_type, misc_feature, unrec_genes, unrec_species)
+    with open('unrecognised_gene_names.csv' , 'w') as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(['count', 'locus_name', 'alternative_name'])
+        for names, count in gene_names.items():
+            writer.writerow([count] + list(names))
+    return (meta, seqs, nohits, other_type, misc_feature, unrec_genes, unrec_species, gene_names)
 
 
 def findmax(x):
@@ -411,7 +417,7 @@ def main():
             print(f'{len(filtered)} remaining after exclusions removed')
             results = filtered
 
-        (meta, seqs, nohits, other_type, misc_feature, unrec_genes, unrec_species) = find_genes(results, args)
+        (meta, seqs, nohits, other_type, misc_feature, unrec_genes, unrec_species, gene_names) = find_genes(results, args)
         
 
 
@@ -422,7 +428,8 @@ def main():
             results = search_genbank(gbids, save=True, output=args.save)
         else:
             results = search_genbank(gbids)
-        (meta, seqs, nohits, other_type, misc_feature, unrec_genes, unrec_species) = find_genes(results, args)
+        (meta, seqs, nohits, other_type, misc_feature, unrec_genes, unrec_species, gene_names) = find_genes(results, args)
+
 
     # Filter out longest sequences
     if args.longest:
@@ -491,11 +498,7 @@ def main():
     print(misc_feature)
     print("\nOther Feature Types:")
     print(other_type)
-    # print("\nUnrecognised Species:")
-    # print(unrec_species)
-    # print("\nMissing Reading Frames:")
-    # for gene, gbids in noframe.items():
-    #     print(f"{gene}: {gbids}")
+
 
 if __name__ == "__main__":
     main()
