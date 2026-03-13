@@ -317,7 +317,8 @@ def find_genes(results, args):
                 if 'codon_start' in feature.qualifiers:
                     frame = feature.qualifiers["codon_start"][0]
                 else:
-                    print(f"Reading frame missing from record {rec.name}, {stdname}.")
+                    if args.frame:
+                        print(f"Reading frame missing from record {rec.name}, {stdname}.")
             seq = feature.extract(rec.seq)
 
             gene_output = {"gbid": rec.name,
@@ -396,6 +397,7 @@ parser.add_argument("-l", "--longest", action='store_true', help="Save only long
 # Optional output of genbank format file as well as fasta
 parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results - provide file path")
 parser.add_argument("-cl", "--clean", type=str, help="Remove numbers/special characters from species names")
+parser.add_argument("-f", "--frame", action='store_true', help="Add reading frame to fasta IDs")
 
 args = parser.parse_args()         # Process input args from command line
 
@@ -453,11 +455,13 @@ def main():
                         file.write(f">{rec['gbid']}\n{seq}\n")
                         x += 1
                     else:
-                        file.write(f">{rec['gbid']};frame={rec['frame']}\n{seq}\n")
+                        if args.frame and rec['frame'] != '':
+                            fasta_id = f"{rec['gbid']};frame={rec['frame']}"
+                        else:
+                            fasta_id = f"{rec['gbid']}"
+                        file.write(f"{fasta_id}\n{seq}\n")
                         x += 1
-                        if rec['frame'] == '': 
-                            if gene in noframe: noframe[gene].append(rec['gbid'])
-                            else: noframe[gene] = [rec['gbid']]
+
                     accessions.append(rec['gbid'])
                 except UndefinedSequenceError:
                     print(f"Error extracting sequence for record '{rec['gbid']}', {gene})")
