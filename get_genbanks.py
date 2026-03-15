@@ -459,7 +459,7 @@ def main():
                             fasta_id = f"{rec['gbid']};frame={rec['frame']}"
                         else:
                             fasta_id = f"{rec['gbid']}"
-                        file.write(f"{fasta_id}\n{seq}\n")
+                        file.write(f">{fasta_id}\n{seq}\n")
                         x += 1
 
                     accessions.append(rec['gbid'])
