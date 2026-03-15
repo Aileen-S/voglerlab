@@ -304,7 +304,7 @@ def find_genes(results, args):
                 gene_names[tuple(names)] += 1
                 for name in names:
                     stdname = name.replace(" ", "_")
-                    stdname = re.sub(r'[/.\"\']', '', stdname)
+                    stdname = re.sub(r"""[/."'\[\]()]""", '', stdname)
                     break
             if args.mito:
                 if stdname not in mito:
