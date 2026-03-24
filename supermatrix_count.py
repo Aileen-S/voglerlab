@@ -1,53 +1,23 @@
 #!/usr/bin/env python3
 
+from Bio import SeqIO
 import argparse
 import csv
-from Bio import SeqIO
+import string
 
-# Argument parser
-parser = argparse.ArgumentParser(description="Count number of genes and number of bases per gene in supermatrix")
-parser.add_argument("-f", "--fasta", type=str, help="Input supermatrix fasta")
-parser.add_argument("-p", "--partitions", type=str, help="catfasta2phyml output partition file")
-parser.add_argument("-m", "--mptp", type=str, help="Optional: mPTP output txt file to add species delimitations to csv")
-parser.add_argument("-o", "--output", type=str, help="Output csv file")
-#parser.add_argument('-t', '--taxonomy', action='store_true', help='Split fasta IDs to get taxonomy in supermatrix')
+def parse_args():
+    parser = argparse.ArgumentParser(description="Count number of genes and number of bases per gene in supermatrix")
+    parser.add_argument("-f", "--fasta", type=str, help="Input supermatrix fasta")
+    parser.add_argument("-p", "--partitions", type=str, help="optional catfasta2phyml output partition file")
+    parser.add_argument("-o", "--output", type=str, help="Output csv file")
 
-args = parser.parse_args()
+    return parser.parse_args()
 
-# Edit gene names in genes_dict and genes_list to match your input
-genes_dict = {"12S":    {"code": "A"},
-              "16S":    {"code": "B"},
-              "18S":    {"code": "C"},
-              "28S":    {"code": "D"},
-              "ATP6":   {"code": "E"},
-              "ATP8":   {"code": "F"},
-              "COX1a":  {"code": "G"},
-              "COX1b":  {"code": "H"},
-              "COX2":   {"code": "I"},
-              "COX3":   {"code": "J"},
-              "CYTB":   {"code": "K"},
-              "ND1":    {"code": "L"},
-              "ND2":    {"code": "M"},
-              "ND3":    {"code": "N"},
-              "ND4.":   {"code": "O"},
-              "ND4L.":  {"code": "P"},
-              "ND5":    {"code": "Q"},
-              "ND6":    {"code": "R"},
-              "AK":     {"code": "S"},
-              "CAD":    {"code": "T"},
-              "EF1A":   {"code": "U"},
-              "H3":     {"code": "V"},
-              "RNApol": {"code": "X"},
-              "Wg":     {"code": "W"}}
-
-
-genes_list = ['12S', '16S', '18S', '28S', 'ATP6', 'ATP8', 'COX1a', 'COX1b', 'COX2', 'COX3', 'CYTB', 'ND1', 'ND2', 'ND3', 'ND4.', 'ND4L.', 'ND5', 'ND6', 'AK', 'CAD', 'EF1A', 'H3', 'RNApol', 'Wg']
 
 # Read partition file
-if args.partitions:
-    with open(args.partitions) as file:
-        parts = {}
-        genes = []
+def read_partitions(partition_file):
+    with open(partition_file) as file:
+        partitions = {}
         lines = file.readlines()
         for line in lines:
             line = line.strip()
@@ -59,127 +29,62 @@ if args.partitions:
             length = end - start
             # Get partition name
             part = part.split('/')[-1]
-            # Add to dict list for each gene [start pos, end pos, length]        
-            parts[part] = [start, end, length]
-            genes.append(part)
-        others = [part for part in genes if all(gene not in part for gene in genes_list)]
+            partitions[part] = [start, end, length]
 
-    print(f'{len(genes)} partitions in partition file')
-else:
-    print('No partition file provided')
+    print(f'{len(list(partitions.keys()))} partitions in partition file')
+    return partitions
 
-# Save mPTP delimited species lists
-if args.mptp:
-    start_processing = False
-    ptp_meta = {}
-    x = 0
-    y = 0
-    with open(args.mptp) as file:
-        lines = file.readlines()
-        for line in lines:
-            # y += 1
-            if 'Number of delimited species' in line:
-                print("PTP: " + line)
-            # x += 1
-            # if y < 8:
-            #     continue
-            # Get PTP species number
-            if 'Species ' in line:
-                start_processing = True
-                spec_no = line.strip().replace(':', '')
-                spec_no = spec_no.split(' ')[1]
-                spec_no = str(spec_no).zfill(4)
-                spec_no = f'T{spec_no}'
-                continue
-            if start_processing and line and 'Species ' not in line:
-                line = line.strip()
-                if line != '':
-                    if spec_no in ptp_meta:
-                        ptp_meta[spec_no].append(line)
-                    else:
-                        ptp_meta[spec_no] = [line]
-
-
-# Write CSV metadata file
-with open(args.output, "w") as file:
-    writer = csv.writer(file)
-    records = SeqIO.parse(args.fasta, "fasta")
-    x = 0
-    rows = []
-    # Without partition file
-    if not args.partitions:
-        if args.mptp:
-            writer.writerow(["ptp_species","taxon", "total_nucleotides"])
-        else:
-            writer.writerow(["taxon", "total_nucleotides"])
-        for rec in records:
-            x += 1
-            gaps = rec.seq.count('-') + rec.seq.count('N') + rec.seq.count('X')
-            row = [rec.id, len(rec.seq) - gaps]
-            rows.append(row)
+def process_fasta(input_fasta, partitions):
+    records = SeqIO.parse(input_fasta, "fasta")
+    count = {}
     # With partition file
-    else:
-        genes_header = []
-        for g in genes_list:
-            for gene in genes:
-                if g in gene:
-                    genes_header.append(gene)
-        if args.mptp:
-            writer.writerow(["ptp_species", "gene_presence", "taxon", "total_genes", "total_nucleotides"] + genes_header + others)
-        else:
-            writer.writerow(["gene_presence", "taxon", "total_genes", "total_nucleotides"] + genes_header + others)
-        for rec in records:
+    for rec in records:
+        gaps = rec.seq.count('-') + rec.seq.count('N') + rec.seq.count('X')
+        count[rec.id] = {'total_nucleotides': len(rec.seq) - gaps}
+        row = [rec.id, '', '']
+        g = 0
+        prec = [] # gene prescence/absence annotation for tree
+        for gene in partitions.keys():
+            gene_seq = rec.seq[partitions[gene][0]:partitions[gene][1]]
+            gaps = gene_seq.count('-') + gene_seq.count('N') + gene_seq.count('X') + gene_seq.count('*')
+            length = partitions[gene][2] - gaps
+            count[rec.id][gene] = length
+            if length > 0:
+                g += 1
+        count[rec.id]['total_partitions'] = g
+    return count
+
+def write_csv(count, output_csv, partitions):
+    # Write CSV gene length file
+    with open(output_csv, "w") as file:
+        writer = csv.writer(file)
+        partition_names = list(partitions.keys()) if partitions else []
+        partition_codes = {name: string.ascii_uppercase[i % 26] for i, name in enumerate(partition_names)}
+        print('Writing partition representation string for each sequence:')
+        for name in partition_names:
+            print(f'{partition_codes[name]} = {name}')
+        writer.writerow(["taxon", "partition_representation", "total_partitions", "total_nucleotides"] + [n.replace('.fasta', '') for n in partition_names])
+        x = 0
+        for rec in count.keys():
+            part_rep = []
             x += 1
-            row = [rec.id, '', '']
-            total = 0
-            g = 0
-            prec = [] # gene prescence/absence annotation for tree
-            for gen in genes_list:
-                for gene in genes:
-                    if gen in gene:
-                        # Count gaps in each gene
-                        rec.seq = rec.seq.upper()
-                        gaps = rec.seq.count('-', parts[gene][0], parts[gene][1]) + rec.seq.count('N', parts[gene][0], parts[gene][1]) + rec.seq.count('X', parts[gene][0], parts[gene][1])
-                        length = parts[gene][2] - gaps
-                        if length > 0:
-                            g += 1
-                            prec.append(genes_dict[gen]['code'])
-                        else:
-                            prec.append('-')
-                        row.append(length)
-                        total = total + length
-            if gene in others:
-                # Count gaps in each gene
-                rec.seq = rec.seq.upper()
-                gaps = rec.seq.count('-', parts[gene][0], parts[gene][1]) + rec.seq.count('N', parts[gene][0], parts[gene][1]) + rec.seq.count('X', parts[gene][0], parts[gene][1])
-                length = parts[gene][2] - gaps
-                if length > 0:
-                    g += 1
-                    prec.append(genes_dict[gen]['code'])
-                else:
-                    prec.append('-')
+            row = [rec, count[rec]['total_partitions'], count[rec]['total_nucleotides']]
+            for name in partition_names:
+                length = count[rec][name]
                 row.append(length)
-                total = total + length
-            row[1] = g
-            row[2] = total
-            row = [''.join(prec)] + row
-            rows.append(row)
-    if args.mptp:
-        ptp_rows = []
-        for row in rows:
-            rec_id = row[1]
-            ptp_id = None
-            for spec, taxa in ptp_meta.items():
-                if rec_id in taxa:
-                    ptp_id = spec
+                # Write partition_rep string
+                part_rep.append(partition_codes[name]) if length > 0 else part_rep.append('-')
+            row[1] = ''.join(part_rep)
+            writer.writerow(row)
+    print(f'{x} records written to {output_csv}')
 
-            if ptp_id is None:
-                print(f'No PTP ID for {rec_id}')
-                ptp_id = ''
-            row = [ptp_id] + row
-            ptp_rows.append(row)
-        rows = ptp_rows
-    for row in rows:
-        writer.writerow(row)
-print(f'{x} taxa written to {args.output}')
+def main():
+    args = parse_args()
+    if args.partitions:
+        partitions = read_partitions(args.partitions)
+        partitions_genes = partitions.keys()    
+    gene_counts = process_fasta(args.fasta, partitions)
+    write_csv(gene_counts, args.output, partitions)
 
+if __name__ == "__main__":
+    main()
