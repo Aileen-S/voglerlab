@@ -68,13 +68,13 @@ def write_csv(count, output_csv, partitions):
         for rec in count.keys():
             part_rep = []
             x += 1
-            row = [rec, count[rec]['total_partitions'], count[rec]['total_nucleotides']]
+            row = []
             for name in partition_names:
                 length = count[rec][name]
                 row.append(length)
                 # Write partition_rep string
                 part_rep.append(partition_codes[name]) if length > 0 else part_rep.append('-')
-            row[1] = ''.join(part_rep)
+            row[1] = [rec, ''.join(part_rep), count[rec]['total_partitions'], count[rec]['total_nucleotides']] + row
             writer.writerow(row)
     print(f'{x} records written to {output_csv}')
 
