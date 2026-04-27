@@ -128,6 +128,8 @@ def align_sequences(records, profile=False, command=False):
         results = list(SeqIO.parse(aligned_io, "fasta"))
         for rec in results:
             rec.id = rec.id.replace('_R_', '')
+            rec.name = rec.id
+            rec.description = rec.id
 
     except Exception as e:
         print(f"Error: {e}")
