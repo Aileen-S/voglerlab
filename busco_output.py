@@ -250,7 +250,7 @@ def concatenate(busco_run_names, alignments):
                 record.seq  += "-" * length
 
             if first:
-                length = len(record.seq)
+                length = len(seq.seq)
                 start = p + 1
                 end = p + length
                 partitions[gene] = {'start' : start,
