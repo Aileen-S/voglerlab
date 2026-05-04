@@ -189,7 +189,7 @@ def process_buscos(gene, buscos_complete_per_gene, buscos_fragmented_per_gene, t
             trimmed = trimal(gene, aligned, trimal_threshold)
             return gene, trimmed
         else:
-            print(f'Skipping {gene} because it is present in less than {int(inclusion_threshold * 100)} of taxa')
+            print(f'Skipping {gene} because it is present in less than {int(inclusion_threshold * 100)}% of taxa')
             return gene, None
 
     except Exception as e:
