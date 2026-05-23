@@ -437,7 +437,7 @@ def main():
 
             # Get good NT records
             if good_add_aa != []:
-                print(f'good_add_aa = {good_add_aa}')
+                # print(f'good_add_aa = {good_add_aa}')
                 good_add_ids = [rec.id for rec in good_add_aa]
                 good_add_nt = [rec for rec in check if rec.id in good_add_ids]
                 good_nt = good_nt + good_add_nt
