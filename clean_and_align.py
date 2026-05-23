@@ -271,31 +271,6 @@ def find_internal_stop_codons(records, data, locus, reading_frames=False):
     return check, good
 
 
-def replace_partial_codons(records, reading_frames, trans_table=5):
-    check = []
-    good = []
-    x = 0
-    y = 0
-    for rec in records:
-        if 'PROFILE' not in rec.id:
-            frame = reading_frames[rec.id] - 1
-            seq = ''
-            has_stop_codon = False
-            sequence = str(rec.seq).upper()
-            # Split into codons according to reading frame
-            codons = [sequence[i:i+3] for i in range(frame, len(sequence), 3)]
-            # Check for partial codons
-            for codon in codons:
-                if '-' in codon and any(c.isalpha() for c in codon):
-                    codon = codon.replace('-', 'N')
-                    y += 1
-                seq = seq + codon
-            rec.seq = Seq(seq)
-        check.append(rec)
-    print(f'{y} partial codons corrected')
-    return check
-
-
 def delete_gappy_columns(records, gap_threshold):
     # Get gap percentage for each position in alignment
     gap_threshold = gap_threshold if gap_threshold is not None else 1
@@ -413,9 +388,6 @@ def main():
             # Remove gappy columns
             check = delete_gappy_columns(check, gap_threshold=gap_threshold)
             check = remove_empty_sequences(check)
-
-            # Fill partial codons
-            check = replace_partial_codons(check, reading_frames, trans_table)
             check_nt = [copy.deepcopy(rec) for rec in check]
 
             # Align as AA again
