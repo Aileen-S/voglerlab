@@ -251,22 +251,22 @@ def find_outliers(records, consensus_threshold, data, locus, chunk=False):
 def find_internal_stop_codons(records, data, locus, reading_frames=False):
     good = []
     check = []
+    if data == 'nt':
+        stop_codons = ['TAA', 'TAG'] if locus == 'mito' else ['TAA', 'TAG', 'TGA']
     for rec in records:
         found_stop = False
         end = len(rec.seq) - next(i for i, c in enumerate(reversed(rec.seq)) if c != '-')
         seq = rec.seq[:end]
         if data == 'nt':
-            stop_codons = ['TAA', 'TAG'] if locus == 'mito' else ['TAA', 'TAG', 'TGA']
             frame = reading_frames[rec.id] - 1
             codons = [seq[i:i+3] for i in range(frame, len(seq), 3)]
             if any(codon in stop_codons for codon in codons[:-1]):
                 check.append(rec)
                 found_stop = True
-        if found_stop == False:
-            good.append(rec)
-        elif data == 'aa':
-            for rec in records:
-                check.append(rec) if '*' in seq[:-1] else good.append(rec)
+            if found_stop == False:
+                good.append(rec)
+        if data == 'aa':
+            check.append(rec) if '*' in seq[:-1] else good.append(rec)
     print(f'{len(good)} sequences without internal stop codons')
     return check, good
 
