@@ -260,7 +260,7 @@ def find_internal_stop_codons(records, data, locus, reading_frames=False):
         if data == 'nt':
             frame = reading_frames[rec.id] - 1
             codons = [seq[i:i+3] for i in range(frame, len(seq), 3)]
-            if any(codon in stop_codons for codon in codons[:-1]):
+            if any(codon in stop_codons for codon in codons[:-3]):
                 check.append(rec)
                 found_stop = True
             if found_stop == False:
