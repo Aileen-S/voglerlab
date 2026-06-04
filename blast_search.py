@@ -76,7 +76,7 @@ parser = argparse.ArgumentParser(description="Filter BLAST file to get max and m
 parser.add_argument("-db", "--database", type=str, help="Path to BLAST database")
 parser.add_argument("-p", "--profile", type=str, help="BLAST search profile")
 parser.add_argument("-o", "--output", type=str, help="Output fasta")
-parser.add_argument("-h", "--hits", type=str, help="Save BLAST hits file")
+parser.add_argument("-s", "--hits", type=str, help="Save BLAST hits file")
 
 args = parser.parse_args()
 
