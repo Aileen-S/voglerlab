@@ -9,7 +9,7 @@ spec <- matrix(c(
   'output',   'o', 1, 'character', 'Output fasta',
   'mptp',     'm', 2, 'character', 'mPTP output .txt file',
   'csv',      'c', 2, 'character', 'Taxonomy CSV',
-  'out_csv',  'm', 2, 'character', 'Output CSV with selected taxa',
+  'out_csv',  'd', 2, 'character', 'Output CSV with selected taxa',
   'list',     'l', 2, 'character', 'Output list of selected taxa',
   'tips',     't', 2, 'character', 'Column name in CSV with fasta IDs',
   'filter',   'f', 2, 'character', 'Column name with species names or ID to filter by',
@@ -94,6 +94,7 @@ if (!is.null(opt$csv)) {
     arrange(filter, desc(length)) %>% 
     distinct(filter, .keep_all = TRUE) %>% 
     ungroup()
+  paste(nrow(filter_select), 'unique values in', opt$filter, 'column of', opt$csv)
   if (!is.null(opt$csv)) {
     filter_select <- filter_select %>%
       filter(!filter %in% mptp_select$filter)    
@@ -106,14 +107,17 @@ if (!is.null(opt$csv)) {
 if (!is.null(opt$out_csv)) {
   add[is.na(add)] <- ''
   write.csv(add, opt$out_csv, row.names = FALSE)  
+  paste('Output CSV written to', opt$out_csv)
 }
 
 # Write selected ID list
 if (!is.null(opt$list)) {
   selected <- add %>% filter(selected != '')
   writeLines(selected$rec_id, opt$list)
+  paste('Output list of selected IDS written to', opt$list)
 }
 
 # Write fasta
 output_fasta <- aln[c(which(names(aln) %in% selected$rec_id))]
 write.fasta(output_fasta, names = names(output), file.out = opt$output)
+paste('Output fasta with', length(output_fasta) ,'sequences written to', opt$output)
