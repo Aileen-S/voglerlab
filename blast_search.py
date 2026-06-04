@@ -17,7 +17,13 @@ def blast(args):
         print("BLAST failed:")
         print("stderr:", result.stderr)
         return []
-    print(f'{len(result.stdout.splitlines())} blast hits')
+    if args.hits:
+        with open(args.hits, 'w') as file:
+            file.write(result.stdout)
+            print(f'{len(result.stdout.splitlines())} blast hits written to {args.hits}')
+    else:
+        print(f'{len(result.stdout.splitlines())} blast hits')
+
     return result.stdout.splitlines()
 
 def get_hits(blast_result):
@@ -70,6 +76,7 @@ parser = argparse.ArgumentParser(description="Filter BLAST file to get max and m
 parser.add_argument("-db", "--database", type=str, help="Path to BLAST database")
 parser.add_argument("-p", "--profile", type=str, help="BLAST search profile")
 parser.add_argument("-o", "--output", type=str, help="Output fasta")
+parser.add_argument("-h", "--hits", type=str, help="Save BLAST hits file")
 
 args = parser.parse_args()
 
