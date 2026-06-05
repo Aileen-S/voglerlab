@@ -32,6 +32,8 @@ def parse_args():
     parser.add_argument("-l", "--locus", choices=['mito', 'nuc', 'rna'], default='mito', help="Specify if sequences are invertebrate mitochondrial coding or nuclear coding, or RNA")
 
     # Optional arguments
+    # Threads
+    parser.add_argument("-t", "--threads", type=int, help="Number of threads for mafft. Default is 2")
 
     # Additional output
     parser.add_argument("-s", "--save", type=str, help="File to save initial alignment with all sequencs, before filtering")
@@ -51,9 +53,9 @@ def parse_args():
 
     # MAFFT options for final alignment, instead of default fast alignment
     parser.add_argument('-m', "--mafft_command", type=str, help="Custom MAFFT command")
-    # Default with profile: 'mafft --addfragments input --retree 1 --maxiterate 0 --nofft --parttree --adjustdirection --anysymbol --thread autodetect profile
-    # Default without profile: 'mafft --retree 1 --maxiterate 0 --nofft --parttree --adjustdirection --anysymbol --thread autodetect input'
-    # Example custom input: 'mafft --addfragments input --globalpair --maxiterate 1000 --adjustdirection --anysymbol --thread autodetect profile'
+    # Default with profile: 'mafft --addfragments input --retree 1 --maxiterate 0 --nofft --parttree --adjustdirection --anysymbol --thread threads profile
+    # Default without profile: 'mafft --retree 1 --maxiterate 0 --nofft --parttree --adjustdirection --anysymbol --thread threads input'
+    # Example custom input: 'mafft --addfragments input --globalpair --maxiterate 1000 --adjustdirection --anysymbol --thread threads profile'
 
     return parser.parse_args()
 
@@ -96,7 +98,7 @@ def translate(records, trans_table=5):
     return aa_records, reading_frames
 
 
-def align_sequences(records, profile=False, command=False):
+def align_sequences(records, profile=False, command=False, threads=2):
     print('Aligning sequences with MAFFT')
     try:
         # Set temp directory for mafft
@@ -107,8 +109,7 @@ def align_sequences(records, profile=False, command=False):
         with open(input_file_path, "w") as temp_input:
             SeqIO.write(records, temp_input, "fasta")
         # Get thread count
-        threads = str(os.cpu_count())
-        threads = 1 if threads is None else threads
+        threads = str(threads)
 
         # Call MAFFT
         if command:
@@ -315,7 +316,7 @@ def trim_to_profile(records):
 def main():
     print('Running clean_and_align.py')
     args = parse_args()
-
+    threads = args.threads if args.threads else '2'
     # Check sequences
     records = list(SeqIO.parse(args.input, 'fasta'))
     all_nt_records = [copy.deepcopy(rec) for rec in records]
@@ -339,14 +340,14 @@ def main():
     if args.locus == 'rna':
         data = 'nt'
         translation=False
-        aligned = align_sequences(records, args.nt_profile)
+        aligned = align_sequences(records, args.nt_profile, threads=threads)
 
     else:
         data = 'aa'
         translation=True
         trans_table = 5 if args.locus == 'mito' else 1
         aa_recs, reading_frames = translate(records, trans_table)
-        aligned = align_sequences(aa_recs, args.aa_profile)
+        aligned = align_sequences(aa_recs, args.aa_profile, threads=threads)
 
     if args.save:
         SeqIO.write(aligned, args.save, 'fasta')
@@ -383,7 +384,7 @@ def main():
             # Realign 'check' sequences as nucleotide
             print('\nCleaning sequences')
             check = [rec for rec in all_nt_records if rec.id in check_ids]
-            check = align_sequences(check, args.nt_profile)
+            check = align_sequences(check, args.nt_profile, threads=threads)
 
             # Remove gappy columns
             check = delete_gappy_columns(check, gap_threshold=gap_threshold)
@@ -398,7 +399,7 @@ def main():
                 for rec in aa_profile_recs:
                     rec.id = 'PROFILE::' + rec.id
                 check_aa = check_aa + aa_profile_recs
-            check_aa = align_sequences(check_aa, args.aa_profile)
+            check_aa = align_sequences(check_aa, args.aa_profile, threads=threads)
 
             # Filter outliers again, lower consensus threshold this time
             check_aa, good_add_aa = find_outliers(check_aa, consensus_threshold = 0.5, data='aa', locus=args.locus)
@@ -413,9 +414,9 @@ def main():
                     print('\nFinal protein alignment')
                     # AA output
                     if args.mafft_command:
-                        good_aa = align_sequences(good, args.aa_profile, command=args.mafft_command)
+                        good_aa = align_sequences(good, args.aa_profile, command=args.mafft_command, threads=threads)
                     else:
-                        good_aa = align_sequences(good, args.aa_profile)
+                        good_aa = align_sequences(good, args.aa_profile, threads=threads)
 
                 else:
                     good_aa = [rec for rec in good]
@@ -447,9 +448,9 @@ def main():
     if good_nt != []:
         print('\nFinal nucleotide alignment:')
         if args.mafft_command:
-            good_nt = align_sequences(good_nt, args.nt_profile, command=args.mafft_command)
+            good_nt = align_sequences(good_nt, args.nt_profile, command=args.mafft_command, threads=threads)
         else:
-            good_nt = align_sequences(good_nt, args.nt_profile)
+            good_nt = align_sequences(good_nt, args.nt_profile, threads=threads)
 
         good_nt = delete_gappy_columns(good_nt, gap_threshold=gap_threshold)
         good_nt = remove_empty_sequences(good_nt)
@@ -464,7 +465,7 @@ def main():
         print('\nSaving seqeunces that did not pass filters')
         good_ids = [rec.id for rec in good_nt]
         check = [rec for rec in all_nt_records if rec.id not in good_ids]
-        check = align_sequences(check, args.nt_profile)
+        check = align_sequences(check, args.nt_profile, threads=threads)
         with open(args.check, 'w') as file:
             SeqIO.write(check, file, 'fasta')
             print(f'{len(check)} sequences written to {args.check}')
