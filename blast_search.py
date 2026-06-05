@@ -6,6 +6,16 @@ import subprocess
 import time
 import os
 
+
+# Paths to the files and directories
+parser = argparse.ArgumentParser(description="Search BLAST database with profile fasta and extract longest match for each record")
+parser.add_argument("-db", "--database", type=str, help="Path to BLAST database")
+parser.add_argument("-p", "--profile", type=str, help="BLAST search profile")
+parser.add_argument("-o", "--output", type=str, help="Output fasta")
+parser.add_argument("-s", "--hits", type=str, help="Save BLAST hits file")
+
+args = parser.parse_args()
+
 def blast(args):
     db = args.database
     query = args.profile
@@ -60,7 +70,7 @@ def extract_sequences(blast_hits, args):
         print(f'Writing sequences to {args.output}')
         for gbid, rec in blast_hits.items():
             rec_len = int(rec['end']) - int(rec['start'])
-            if rec_len > 200:
+            if rec_len > 200 and rec_len < 5000:
                 command = ['blastdbcmd', '-db', args.database, '-entry', gbid, '-range', f'{rec["start"]}-{rec["end"]}', '-outfmt', '%f']
                 result = subprocess.run(command, capture_output=True, text=True)
                 if result.returncode != 0 or not result.stdout.strip():
@@ -70,21 +80,10 @@ def extract_sequences(blast_hits, args):
                 file.write(result.stdout)
 
 
-# Paths to the files and directories
-parser = argparse.ArgumentParser(description="Filter BLAST file to get max and min sequence position from hits. Gets longest match for each record" 
-                                "BLAST outfmt '6 sacc sstart send'. Result can be used to extract full sequences from BLAST database.")
-parser.add_argument("-db", "--database", type=str, help="Path to BLAST database")
-parser.add_argument("-p", "--profile", type=str, help="BLAST search profile")
-parser.add_argument("-o", "--output", type=str, help="Output fasta")
-parser.add_argument("-s", "--hits", type=str, help="Save BLAST hits file")
-
-args = parser.parse_args()
-
 def main():
     blast_result = blast(args)
     blast_hits = get_hits(blast_result)
     extract_sequences(blast_hits, args)
-
 
 if __name__ == "__main__":
     main()
