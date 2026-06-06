@@ -17,17 +17,6 @@ spec <- matrix(c(
 ), byrow = TRUE, ncol = 5)
 opt <- getopt(spec)
 
-# opt <- data.frame(
-#   input = c('~/scratch/adephaga/delimitation/01_raxml/12S.fasta'),
-#   output = c('~/scratch/adephaga/delimitation/12S_test.fasta'),
-#   mptp = c('~/scratch/adephaga/delimitation/02_mptp/12S.mptp.txt'),
-#   csv = c('~/scratch/adephaga/metadata/standardised_combined_metadata.csv'),
-#   out_csv = c('~/scratch/adephaga/delimitation/12S_ptp.csv'),
-#   list = c('~/scratch/adephaga/delimitation/12S_ptp.list'),
-#   tips = c('rec_id'),
-#   filter = c('binomial'),
-#   strip = c(TRUE)
-# )
 
 if (is.null(opt$mptp) & is.null(opt$csv)) {
   stop('Must specify either mPTP output or CSV file with species names/IDs')
@@ -112,8 +101,9 @@ if (!is.null(opt$out_csv)) {
 }
 
 # Write selected ID list
+selected <- add %>% filter(selected != '')
+
 if (!is.null(opt$list)) {
-  selected <- add %>% filter(selected != '')
   writeLines(selected$rec_id, opt$list)
   paste('Output list of selected IDS written to', opt$list)
 }
