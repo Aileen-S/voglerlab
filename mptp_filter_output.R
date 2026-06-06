@@ -98,14 +98,6 @@ if (!is.null(opt$csv)) {
     mutate(selected = ifelse(rec_id %in% filter_select$rec_id & is.na(selected), 'taxonomy', selected))
 }
 
-
-
-add[grep("SRAB00086", add$rec_id), ]
-lengths[grep("SRAB00086", lengths$rec_id), ]
-mptp_df[grep("SRAB00086", mptp_df$rec_id), ]
-meta[grep("SRAB00086", meta$rec_id), ]
-
-
 # Write CSV
 if (!is.null(opt$out_csv)) {
   add[is.na(add)] <- ''
