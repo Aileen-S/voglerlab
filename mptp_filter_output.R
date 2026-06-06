@@ -77,6 +77,7 @@ if (!is.null(opt$mptp)) {
     mutate(selected = ifelse(rec_id %in% mptp_select$rec_id, 'PTP', NA))
 } else {
   add <- lengths
+  add$selected <- NA
 }
 
 # Add taxonomy filter
@@ -95,7 +96,7 @@ if (!is.null(opt$csv)) {
     distinct(filter, .keep_all = TRUE) %>% 
     ungroup()
   paste(nrow(filter_select), 'unique values in', opt$filter, 'column of', opt$csv)
-  if (!is.null(opt$csv)) {
+  if (!is.null(opt$mptp)) {
     filter_select <- filter_select %>%
       filter(!filter %in% mptp_select$filter)    
   }
@@ -119,5 +120,5 @@ if (!is.null(opt$list)) {
 
 # Write fasta
 output_fasta <- aln[c(which(names(aln) %in% selected$rec_id))]
-write.fasta(output_fasta, names = names(output), file.out = opt$output)
+write.fasta(output_fasta, names = names(output_fasta), file.out = opt$output)
 paste('Output fasta with', length(output_fasta) ,'sequences written to', opt$output)
