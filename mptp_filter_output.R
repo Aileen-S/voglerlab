@@ -22,6 +22,11 @@ if (is.null(opt$mptp) & is.null(opt$csv)) {
   stop('Must specify either mPTP output or CSV file with species names/IDs')
 }
 
+# opt <- data.frame(input = 'COX1b.fasta',
+#                   output = 'COX1b_filtered.fasta',
+#                   mptp = 'COX1b.mptp.txt',
+#                   strip = TRUE)
+
 # Read fasta
 aln <- read.fasta(opt$input)
 paste(length(aln), 'sequences', 'in', opt$input)
@@ -54,7 +59,7 @@ if (!is.null(opt$mptp)) {
       mptp_df <- add_row(mptp_df, ptp_species = spec, rec_id = rec_id)
     }
   }
-  paste(nrow(mptp_df), 'records and', as.character(sp_no), 'PTP groups in', opt$mptp)
+  print(paste(nrow(mptp_df), 'records and', as.character(sp_no), 'PTP groups in', opt$mptp))
   add <- merge(mptp_df, lengths, by = 'rec_id')
 
   # Find longest for each mPTP group
@@ -84,7 +89,7 @@ if (!is.null(opt$csv)) {
     arrange(filter, desc(length)) %>% 
     distinct(filter, .keep_all = TRUE) %>% 
     ungroup()
-  paste(nrow(filter_select), 'unique values in', opt$filter, 'column of', opt$csv)
+  print(paste(nrow(filter_select), 'unique values in', opt$filter, 'column of', opt$csv))
   if (!is.null(opt$mptp)) {
     filter_select <- filter_select %>%
       filter(!filter %in% mptp_select$filter)    
@@ -93,11 +98,19 @@ if (!is.null(opt$csv)) {
     mutate(selected = ifelse(rec_id %in% filter_select$rec_id & is.na(selected), 'taxonomy', selected))
 }
 
+
+
+add[grep("SRAB00086", add$rec_id), ]
+lengths[grep("SRAB00086", lengths$rec_id), ]
+mptp_df[grep("SRAB00086", mptp_df$rec_id), ]
+meta[grep("SRAB00086", meta$rec_id), ]
+
+
 # Write CSV
 if (!is.null(opt$out_csv)) {
   add[is.na(add)] <- ''
   write.csv(add, opt$out_csv, row.names = FALSE)  
-  paste('Output CSV written to', opt$out_csv)
+  print(paste('Output CSV written to', opt$out_csv))
 }
 
 # Write selected ID list
@@ -105,7 +118,7 @@ selected <- add %>% filter(selected != '')
 
 if (!is.null(opt$list)) {
   writeLines(selected$rec_id, opt$list)
-  paste('Output list of selected IDS written to', opt$list)
+  print(paste('Output list of selected IDS written to', opt$list))
 }
 
 # Write fasta
