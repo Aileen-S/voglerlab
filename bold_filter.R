@@ -5,7 +5,7 @@ library(getopt)
 library(dplyr)
 
 spec <- matrix(c(
-  'input',      'i', 1, 'character', 'Input BOLD metadata tsv to be filtered',
+  'input',      'i', 1, 'character', 'Input BOLD metadata tsv(s) to be filtered. Comma separates list if multiple files',
   'genbank',    'g', 2, 'logical',   'Remove sequences also on GenBank',
   'barcode',    'c', 2, 'logical',   'Save only barcodes, delete other genes',
   'longest',    'l', 2, 'character', 'Keep only longest sequence per BIN or per species (choices are "bin" or "species")'
@@ -13,10 +13,19 @@ spec <- matrix(c(
 
 opt <- getopt(spec)
 
+setwd('~/scratch/adephaga/bold/')
+opt <- data.frame(input = 'bold_Adephaga_260605.tsv,bold_Archostemata_260605.tsv,bold_Myxophaga_260605.tsv',
+                  genbank = TRUE)
 
 # Load data
 load_data <- function(input) {
-  meta <- read.csv(input, header = TRUE, sep = "\t", quote = "")  
+  files <- strsplit(input, ',')[[1]]
+  if (length(files) > 1) {
+    meta_list <- lapply(files, read.csv, header = TRUE, sep = "\t", quote = "", colClasses = "character")
+    meta <- bind_rows(meta_list)
+  } else {
+    meta <- read.csv(input, header = TRUE, sep = "\t", quote = "")
+  }
   meta[meta == 'None'] <- NA
   meta[meta == ''] <- NA  
   # Remove records without sequences
@@ -89,11 +98,12 @@ write_csv <- function(meta) {
   meta[ , empty] <- ''
   csv <- meta %>% 
     select(	processid, bin_uri,	suborder,	infraorder, superfamily, family, subfamily, 
-          tribe, subtribe, genus, subgenus, species, subspecies, country.ocean,	latitude,	longitude) %>%
+          tribe, subtribe, genus, subgenus, species, subspecies, identification, country.ocean,	latitude,	longitude) %>%
     distinct()
   new_names <- c("bold_id",	"bold_bin",	"suborder", "infraorder",	"superfamily", "family", "subfamily",	"tribe", 
-                "subtribe",	"genus",	"subgenus",	"species", "subspecies", "country",	"latitude",	"longitude")
+                "subtribe",	"genus",	"subgenus",	"species", "subspecies", "identification", "country",	"latitude",	"longitude")
   names(csv) <- new_names
+  csv[is.na(csv)] <- ''
 
   # Write metadata to CSV
   write.csv(csv, 'bold_metadata.csv', row.names = FALSE)
