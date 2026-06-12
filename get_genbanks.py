@@ -46,7 +46,32 @@ cds = ['ATP6', 'ATP8', 'COX1', 'COX2', 'COX3', 'CYTB', 'ND1', 'ND2', 'ND3', 'ND4
 suborders = ['Adephaga', 'Polyphaga', 'Myxophaga', 'Archostemata']
 
 
+# Add option to find only mito genes, or only selected genes.
+parser = argparse.ArgumentParser(description="Search GenBank, retrieve gene sequences and save as fasta.")
 
+# Input options - input file or search options
+parser.add_argument('-i', '--input', type=str, help="Input genbank file, rather than searching NCBI")
+# Search options
+parser.add_argument("-t", "--taxon", type=str, help="Taxon of interest")
+parser.add_argument('-id', '--id_list', type=str, help="Input file with accession or taxon ID list")
+parser.add_argument('-r', '--ref', choices=['txid', 'gbid'], help="If using --id_list option, specify accessions or taxon IDs.")
+parser.add_argument("-e", "--email", type=str, help="Your email registered with NCBI")
+parser.add_argument("-c", "--csv", type=str, help="Save metadata as csv file - provide file path")
+
+
+# Filtering options
+parser.add_argument("-x", "--exclude", type=str, help="Input file with list of accession to skip (will not search or save these records)")
+parser.add_argument('-m', '--mito', action='store_true', help='Save only mitochondrial protein-coding genes')
+parser.add_argument("-g", "--gene", type=str, help="Save specified gene only (use gene name format from genes dict below)")
+parser.add_argument("-l", "--longest", action='store_true', help="Save only longest sequence for each NCBI taxid")
+
+# Output options
+# Optional output of genbank format file as well as fasta
+parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results - provide file path")
+parser.add_argument("-cl", "--clean", type=str, help="Remove numbers/special characters from species names")
+parser.add_argument("-f", "--frame", action='store_true', help="Add reading frame to fasta IDs")
+
+args = parser.parse_args()
 
 def get_gbids(query, chunk=10000, retries=10, delay=30):
     gbids = set()
@@ -180,6 +205,7 @@ def get_feat_name(feat):
 
 def genbank_metadata(rec, clean=False):
     # NCBI taxon ID
+
     db_xref = rec.features[0].qualifiers.get("db_xref", [])
     txid = ""
     for ref in db_xref:
@@ -206,7 +232,7 @@ def genbank_metadata(rec, clean=False):
     taxonomy_string = '|'.join(rec.annotations["taxonomy"])
     #taxonomy.append(spec.split(' ')[0])
     #fastatax = f"{txid}_{taxonomy[2]}_{taxonomy[3]}_{taxonomy[4]}_{specfasta}"
-
+    date = rec.annotations["date"]
     # Location
     if "geo_loc_name" in rec.features[0].qualifiers:
         location = rec.features[0].qualifiers["geo_loc_name"][0]
@@ -252,14 +278,14 @@ def genbank_metadata(rec, clean=False):
               "description": rec.description,
               "spec_id": rec.annotations["organism"],
               "spec": spec,
-              "date": rec.annotations["date"],
+              "date": date,
               "taxonomy": taxonomy,
               "country": country,
               "region": region,
               "lat": lat,
               "long": long,
               "refs": refs,
-              "row": [txid, rec.name, '', '', ''] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
+              "row": [txid, rec.name, date, '', '', ''] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
     return output
 
 
@@ -373,34 +399,6 @@ def find_longest_seqs(seqs):
     return saved_recs
 
 
-# Argument parser
-# Add option to find only mito genes, or only selected genes.
-parser = argparse.ArgumentParser(description="Search GenBank, retrieve gene sequences and save as fasta.")
-
-# Input options - input file or search options
-parser.add_argument('-i', '--input', type=str, help="Input genbank file, rather than searching NCBI")
-# Search options
-parser.add_argument("-t", "--taxon", type=str, help="Taxon of interest")
-parser.add_argument('-id', '--id_list', type=str, help="Input file with accession or taxon ID list")
-parser.add_argument('-r', '--ref', choices=['txid', 'gbid'], help="If using --id_list option, specify accessions or taxon IDs.")
-parser.add_argument("-e", "--email", type=str, help="Your email registered with NCBI")
-parser.add_argument("-c", "--csv", type=str, help="Save metadata as csv file - provide file path")
-
-
-# Filtering options
-parser.add_argument("-x", "--exclude", type=str, help="Input file with list of accession to skip (will not search or save these records)")
-parser.add_argument('-m', '--mito', action='store_true', help='Save only mitochondrial protein-coding genes')
-parser.add_argument("-g", "--gene", type=str, help="Save specified gene only (use gene name format from genes dict below)")
-parser.add_argument("-l", "--longest", action='store_true', help="Save only longest sequence for each NCBI taxid")
-
-# Output options
-# Optional output of genbank format file as well as fasta
-parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results - provide file path")
-parser.add_argument("-cl", "--clean", type=str, help="Remove numbers/special characters from species names")
-parser.add_argument("-f", "--frame", action='store_true', help="Add reading frame to fasta IDs")
-
-args = parser.parse_args()         # Process input args from command line
-
 def main():
 
     # Get records
@@ -473,7 +471,7 @@ def main():
         with open(args.csv, "w") as file:
             writer = csv.writer(file)
             writer.writerow(
-                ["ncbi_taxid", "genbank_accession", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
+                ["ncbi_taxid", "genbank_accession", "date", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
                 "subfamily", "tribe", "species", "taxonomy", "country", "region", "latitude", "longitude", "ref_authoer", "ref_title", "ref_journal"])
             for gbid, rec in meta.items():
                 if gbid in accessions:
