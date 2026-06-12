@@ -155,6 +155,7 @@ def genbank_metadata(rec):
         if tax.endswith('inae'): taxonomy[4] = tax
         if tax.endswith('ini'): taxonomy[5] = tax
     taxonomy_string = '|'.join(rec.annotations["taxonomy"])
+    date = rec.annotations["date"]
 
     # Location
     if "geo_loc_name" in rec.features[0].qualifiers:
@@ -201,14 +202,14 @@ def genbank_metadata(rec):
               "description": rec.description,
               "spec_id": rec.annotations["organism"],
               "spec": spec,
-              "date": rec.annotations["date"],
+              "date": date,
               "taxonomy": taxonomy,
               "country": country,
               "region": region,
               "lat": lat,
               "long": long,
               "refs": refs,
-              "row": [txid, rec.name, '', '', ''] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
+              "row": [txid, rec.name, date, '', '', ''] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
     return output
 
 
@@ -267,7 +268,7 @@ def main():
     with open(args.output, "w") as file:
         writer = csv.writer(file)
         writer.writerow(
-            ["ncbi_taxid", "genbank_accession", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
+            ["ncbi_taxid", "genbank_accession", "date", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
             "subfamily", "tribe", "species", "taxonomy", "country", "region", "latitude", "longitude", "ref_author", "ref_title", "ref_journal"])
         for gbid, rec in meta.items():
             writer.writerow(rec['row'])
