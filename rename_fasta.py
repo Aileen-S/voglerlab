@@ -93,7 +93,8 @@ def process_duplicate_ids(recs, dups=False, aa=False):
                 if max_rec:
                     if dups:
                         selected[list(max_rec.keys())[0]] = max_rec
-                    removed[rec_id] = new
+                    else:
+                        removed[rec_id] = new
                 max_rec = {rec_id: rec_seq}
                 max_len = length
             else:
