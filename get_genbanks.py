@@ -232,7 +232,11 @@ def genbank_metadata(rec, clean=False):
     taxonomy_string = '|'.join(rec.annotations["taxonomy"])
     #taxonomy.append(spec.split(' ')[0])
     #fastatax = f"{txid}_{taxonomy[2]}_{taxonomy[3]}_{taxonomy[4]}_{specfasta}"
-    date = rec.annotations["date"]
+    if 'collection_date' in rec.features[0].qualifiers:
+        collection_date = rec.features[0].qualifiers['collection_date'][0]
+    else:
+        collection_date = ""
+    rec_date = rec.annotations["date"]
     # Location
     if "geo_loc_name" in rec.features[0].qualifiers:
         location = rec.features[0].qualifiers["geo_loc_name"][0]
@@ -278,14 +282,15 @@ def genbank_metadata(rec, clean=False):
               "description": rec.description,
               "spec_id": rec.annotations["organism"],
               "spec": spec,
-              "date": date,
+              "rec_date": rec_date,
+              "collection_date": collection_date,
               "taxonomy": taxonomy,
               "country": country,
               "region": region,
               "lat": lat,
               "long": long,
               "refs": refs,
-              "row": [txid, rec.name, date, '', '', ''] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
+              "row": [txid, rec.name, rec_date, collection_date, '', '', ''] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
     return output
 
 
@@ -471,7 +476,7 @@ def main():
         with open(args.csv, "w") as file:
             writer = csv.writer(file)
             writer.writerow(
-                ["ncbi_taxid", "genbank_accession", "date", "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
+                ["ncbi_taxid", "genbank_accession", "record_date", 'collection_date', "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
                 "subfamily", "tribe", "species", "taxonomy", "country", "region", "latitude", "longitude", "ref_authoer", "ref_title", "ref_journal"])
             for gbid, rec in meta.items():
                 if gbid in accessions:
