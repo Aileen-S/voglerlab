@@ -9,7 +9,7 @@ import time
 import re
 from Bio.Seq import Seq, UndefinedSequenceError
 from collections import defaultdict
-from http.client import HTTPException
+from http.client import HTTPException, IncompleteRead
 
 suborders = ['Adephaga', 'Polyphaga', 'Myxophaga', 'Archostemata']
 
@@ -55,7 +55,7 @@ def get_gbids(query, chunk=10000, retries=10, delay=30):
                     time.sleep(1)
                 break
             
-            except (Entrez.HTTPError, RuntimeError) as e:
+            except (Entrez.HTTPError, RuntimeError, IncompleteRead) as e:
                 print(f"Error for {term} on attempt {attempt + 1}: {e} Retrying in {delay} seconds...")
                 time.sleep(delay)
         else:
@@ -130,7 +130,7 @@ def search_genbank(ids, chunk_size=500, retries=10, delay=30, save=False, output
                         except HTTPException:
                             print(f"Incompete read error with record {record.name}")
                     break # Stop addition retries if successful
-            except (Entrez.HTTPError, RuntimeError) as e:
+            except (Entrez.HTTPError, RuntimeError, IncompleteRead) as e:
                 print("HTTP error fetching records; retrying in 20 seconds")
                 time.sleep(delay)
         else:
