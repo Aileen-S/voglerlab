@@ -9,11 +9,12 @@ import time
 import re
 from Bio.Seq import Seq, UndefinedSequenceError
 from collections import defaultdict
+from http.client import HTTPException
 
 suborders = ['Adephaga', 'Polyphaga', 'Myxophaga', 'Archostemata']
 
 # Argument parser
-parser = argparse.ArgumentParser(description="Search GenBank, retrieve gene sequences and save as fasta.")
+parser = argparse.ArgumentParser(description="Search GenBank or GB file, retrieve metadata.")
 parser.add_argument('-i', '--input', type=str, help="Input genbank file, rather than searching NCBI")
 parser.add_argument('-o', '--output', type=str, help="Output CSV file")
 parser.add_argument("-s", "--save", type=str, help="Output genbank file with initial search results - provide file path")
@@ -218,30 +219,6 @@ def genbank_metadata(rec):
     return output
 
 
-def find_genes(results, args):
-
-    meta = {}
-    seqs = {}
-    nohits = []
-    other_type = set()
-    misc_feature = set()
-    unrec_genes = {}
-    unrec_species = []
-    x = 0  # Count taxids
-
-    gene_names = defaultdict(int)
-    for rec in results:
-        if args.taxon:
-            if args.taxon not in rec.annotations["taxonomy"]:
-                unrec_species.append(rec.name)
-                continue
-        output = genbank_metadata(rec)
-        meta[rec.name] = output
-
-    return meta
-
-
-
 def main():
 
     # Get records
@@ -262,7 +239,6 @@ def main():
     for rec in results:
         if args.taxon:
             if args.taxon not in rec.annotations["taxonomy"]:
-                unrec_species.append(rec.name)
                 continue
         output = genbank_metadata(rec)
         meta[rec.name] = output
