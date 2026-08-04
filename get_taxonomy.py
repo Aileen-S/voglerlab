@@ -141,10 +141,12 @@ def genbank_metadata(rec):
     # NCBI taxon ID
     db_xref = rec.features[0].qualifiers.get("db_xref", [])
     txid = ""
+    bold = ""
     for ref in db_xref:
         if "taxon" in ref:  # Get NCBI taxon, rather than BOLD cross ref
             txid = "".join(filter(str.isdigit, ref))  # Extract numbers from NCBI taxon value
-
+        if "BOLD" in ref:
+            bold = ref[5:]
     # Taxonomy
     spec = rec.annotations["organism"]
     taxonomy = ['', '', '', '', '', '']
@@ -215,7 +217,7 @@ def genbank_metadata(rec):
               "lat": lat,
               "long": long,
               "refs": refs,
-              "row": [txid, rec.name, rec_date, collection_date, '', '', ''] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
+              "row": [txid, rec.name, rec_date, collection_date, rec.description, bold,] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
     return output
 
 
@@ -249,7 +251,7 @@ def main():
     with open(args.output, "w") as file:
         writer = csv.writer(file)
         writer.writerow(
-            ["ncbi_taxid", "genbank_accession", "record_date", 'collection_date', "bold_id", "bold_bin", "lab_id", "suborder", "infraorder", "superfamily", "family", 
+            ["ncbi_taxid", "genbank_accession", "record_date", 'collection_date', 'description', "bold_ref", "suborder", "infraorder", "superfamily", "family", 
             "subfamily", "tribe", "species", "taxonomy", "country", "region", "latitude", "longitude", "ref_author", "ref_title", "ref_journal"])
         for gbid, rec in meta.items():
             writer.writerow(rec['row'])
