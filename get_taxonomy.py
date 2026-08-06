@@ -147,6 +147,9 @@ def genbank_metadata(rec):
             txid = "".join(filter(str.isdigit, ref))  # Extract numbers from NCBI taxon value
         if "BOLD" in ref:
             bold = ref[5:]
+
+    seq = rec.seq
+    seq_len = len(seq)
     # Taxonomy
     spec = rec.annotations["organism"]
     taxonomy = ['', '', '', '', '', '']
@@ -204,21 +207,8 @@ def genbank_metadata(rec):
         refs.append(first.authors)
         refs.append(first.title)
         refs.append(first.journal)
-    output = {"gbid": rec.name,
-              "txid": txid,
-              "description": rec.description,
-              "spec_id": rec.annotations["organism"],
-              "spec": spec,
-              "rec_date": rec_date,
-              "collection_date": collection_date,
-              "taxonomy": taxonomy,
-              "country": country,
-              "region": region,
-              "lat": lat,
-              "long": long,
-              "refs": refs,
-              "row": [txid, rec.name, rec_date, collection_date, rec.description, bold,] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs}
-    return output
+    metadata = [txid, rec.name, rec_date, collection_date, rec.description, seq_len, bold,] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs
+    return rec.name, metadata
 
 
 def main():
@@ -242,8 +232,8 @@ def main():
         if args.taxon:
             if args.taxon not in rec.annotations["taxonomy"]:
                 continue
-        output = genbank_metadata(rec)
-        meta[rec.name] = output
+        rec.name, metadata = genbank_metadata(rec)
+        meta[rec.name] = metadata
 
 
     # Write CSV metadata file
@@ -251,10 +241,10 @@ def main():
     with open(args.output, "w") as file:
         writer = csv.writer(file)
         writer.writerow(
-            ["ncbi_taxid", "genbank_accession", "record_date", 'collection_date', 'description', "bold_ref", "suborder", "infraorder", "superfamily", "family", 
+            ["ncbi_taxid", "genbank_accession", "record_date", 'collection_date', 'description', "sequence_length", "bold_ref", "suborder", "infraorder", "superfamily", "family", 
             "subfamily", "tribe", "species", "taxonomy", "country", "region", "latitude", "longitude", "ref_author", "ref_title", "ref_journal"])
-        for gbid, rec in meta.items():
-            writer.writerow(rec['row'])
+        for gbid, metadata in meta.items():
+            writer.writerow(metadata)
             x += 1
         print(f"Metadata for {x} records saved as CSV file to {args.output}")
 
