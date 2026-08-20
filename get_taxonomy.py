@@ -216,7 +216,7 @@ def genbank_metadata(rec):
         refs.append(first.authors)
         refs.append(first.title)
         refs.append(first.journal)
-    metadata = [txid, rec.name, biosample, bioproject, sra_ref, rec.dbxrefs, rec_date, collection_date, rec.description, seq_len, bold,] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs
+    metadata = [txid, rec.name, biosample, bioproject, sra_ref, rec_date, collection_date, rec.description, seq_len, bold,] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs
     return rec.name, metadata
 
 
@@ -250,7 +250,7 @@ def main():
     with open(args.output, "w") as file:
         writer = csv.writer(file)
         writer.writerow(
-            ["ncbi_taxid", "genbank_accession", "biosample", "bioproject", "sra_ref", "dbxrefs", "record_date", 'collection_date', 'description', "sequence_length", "bold_ref", "suborder", "infraorder", "superfamily", "family", 
+            ["ncbi_taxid", "genbank_accession", "biosample", "bioproject", "sra_ref", "record_date", 'collection_date', 'description', "sequence_length", "bold_ref", "suborder", "infraorder", "superfamily", "family", 
             "subfamily", "tribe", "species", "taxonomy", "country", "region", "latitude", "longitude", "ref_author", "ref_title", "ref_journal"])
         for gbid, metadata in meta.items():
             writer.writerow(metadata)
