@@ -142,12 +142,21 @@ def genbank_metadata(rec):
     db_xref = rec.features[0].qualifiers.get("db_xref", [])
     txid = ""
     bold = ""
+    biosample = ""
+    bioproject = ""
+    sra_ref = ""
     for ref in db_xref:
         if "taxon" in ref:  # Get NCBI taxon, rather than BOLD cross ref
             txid = "".join(filter(str.isdigit, ref))  # Extract numbers from NCBI taxon value
         if "BOLD" in ref:
             bold = ref[5:]
-
+    for ref in rec.dbxrefs:
+        if 'BioSample' in ref:
+            biosample = ref.split(':')[-1]
+        if 'BioProject' in ref:
+            bioproject = ref.split(':')[-1]
+        if 'Sequence Read Archive' in ref:
+            sra_ref = ref.split(':')[-1]
     seq = rec.seq
     seq_len = len(seq)
     # Taxonomy
@@ -207,7 +216,7 @@ def genbank_metadata(rec):
         refs.append(first.authors)
         refs.append(first.title)
         refs.append(first.journal)
-    metadata = [txid, rec.name, rec_date, collection_date, rec.description, seq_len, bold,] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs
+    metadata = [txid, rec.name, biosample, bioproject, sra_ref, rec.dbxrefs, rec_date, collection_date, rec.description, seq_len, bold,] + taxonomy + [spec, taxonomy_string, country, region, lat, long] + refs
     return rec.name, metadata
 
 
@@ -241,7 +250,7 @@ def main():
     with open(args.output, "w") as file:
         writer = csv.writer(file)
         writer.writerow(
-            ["ncbi_taxid", "genbank_accession", "record_date", 'collection_date', 'description', "sequence_length", "bold_ref", "suborder", "infraorder", "superfamily", "family", 
+            ["ncbi_taxid", "genbank_accession", "biosample", "bioproject", "sra_ref", "dbxrefs", "record_date", 'collection_date', 'description', "sequence_length", "bold_ref", "suborder", "infraorder", "superfamily", "family", 
             "subfamily", "tribe", "species", "taxonomy", "country", "region", "latitude", "longitude", "ref_author", "ref_title", "ref_journal"])
         for gbid, metadata in meta.items():
             writer.writerow(metadata)
