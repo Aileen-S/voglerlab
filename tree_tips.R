@@ -1,11 +1,13 @@
 #!/usr/bin/Rscript
 
 # Example: Rscript tree_tips.R --nexus < tree.nex > tree_tips.txt
+# TO get IDs and full names, use --csv
 
 library(ape, quietly = TRUE)
 
 args <- commandArgs(trailingOnly = TRUE)
 is_nexus <- "--nexus" %in% args
+csv_out <- "--csv" %in% args
 
 input <- file('stdin', 'r')
 
@@ -15,4 +17,10 @@ if (!is_nexus) {
   tree <- read.nexus(input)
 }
 
-cat(tree$tip.label, sep = "\n")
+if (csv_out) {
+  
+
+  
+} else{
+  cat(tree$tip.label, sep = "\n")
+}
