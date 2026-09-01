@@ -11,7 +11,7 @@ spec <- matrix(c(
                                     Default without this option is new names in first column, old names in second column',
   'output',   'o', 1, 'character', 'Output fasta',
   # 'renamed',  'r', 2, 'logical',   'CSV output with old and new tips names',
-  'drop_old', 'd', 2, 'logical',   'Drop original tip names (default keep old name at start of new name)',
+  'drop_old', 'd', 2, 'logical',   'Drop original tip names (default keep old name at start of new name)'
   # 'prefix',   'p', 2, 'character', 'Add specified string to the start of all labels'
 ), byrow = TRUE, ncol = 5)
 opt <- getopt(spec)
@@ -61,8 +61,6 @@ rename_fasta <- function(seqs, df, opt) {
   names(renamed) <- new_labels
   return(renamed)
 }
-
-
 
 # opt <- data.frame(
 #   input = c('test.fasta'),
