@@ -61,7 +61,7 @@ rename_fasta <- function(seqs, df, opt) {
   renamed <- seqs
   new_labels <- ifelse(is.na(matched), names(renamed), matched)
   names(renamed) <- new_labels
-  return(renamed, df)
+  return(list(renamed_seqs = renamed, renamed_df = df))
 }
 
 # opt <- data.frame(
@@ -74,9 +74,9 @@ rename_fasta <- function(seqs, df, opt) {
 
 seqs <- read.fasta(opt$input)
 df <- read.csv(opt$csv)
-renamed <- rename_fasta(seqs, df, opt)
-write.fasta(renamed, names(renamed), opt$output)
+output <- rename_fasta(seqs, df, opt)
+write.fasta(output$renamed_seqs, names(renamed), opt$output)
 
 if (!is.null(opt$renamed)) {
-  write.csv(df, opt$renamed)
+  write.csv(output$renamed_df, opt$renamed)
 }
