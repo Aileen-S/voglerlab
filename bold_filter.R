@@ -1,9 +1,8 @@
 # Filter output from BOLD v5 API
 
 # Load packages
-library(getopt)
-library(dplyr)
-library(readr)
+suppressPackageStartupMessages(library(dplyr, readr, getopt))
+
 
 spec <- matrix(c(
   'input',      'i', 1, 'character', 'Input BOLD metadata tsv(s) to be filtered. Comma separates list if multiple files',
@@ -14,9 +13,9 @@ spec <- matrix(c(
 
 opt <- getopt(spec)
 
-# setwd('~/scratch/adephaga/bold/')
-# opt <- data.frame(input = 'bold_Adephaga_260610.tsv,bold_Archostemata_260610.tsv,bold_Myxophaga_260610.tsv',
-#                   genbank = TRUE)
+setwd('~/scratch/adephaga/bold/')
+opt <- data.frame(input = 'bold_Adephaga_260610.tsv,bold_Archostemata_260610.tsv,bold_Myxophaga_260610.tsv',
+                  genbank = TRUE)
 
 # Load data
 load_data <- function(input) {
@@ -98,11 +97,10 @@ write_csv <- function(meta) {
   empty <- c('subgenus', 'subtribe',	'tribe', 'superfamily',	'infraorder',	'suborder')
   meta[ , empty] <- ''
   csv <- meta %>% 
-    mutate(date = ifelse(!is.na(collection_date_start), collection_date_start, sequence_upload_date)) %>%
-    select(	processid, date, bin_uri,	suborder,	infraorder, superfamily, family, subfamily, 
+    select(	processid, sequence_upload_date, collection_date_start, bin_uri,	suborder,	infraorder, superfamily, family, subfamily, 
           tribe, subtribe, genus, subgenus, species, subspecies, identification, country.ocean,	latitude,	longitude) %>%
     distinct()
-  new_names <- c("bold_id",	"date",	"bold_bin",	"suborder", "infraorder",	"superfamily", "family", "subfamily",	"tribe", 
+  new_names <- c("bold_id",	"record_date", "collection_date",	"bold_bin",	"suborder", "infraorder",	"superfamily", "family", "subfamily",	"tribe", 
                 "subtribe",	"genus",	"subgenus",	"species", "subspecies", "identification", "country",	"latitude",	"longitude")
   names(csv) <- new_names
   csv[is.na(csv)] <- ''

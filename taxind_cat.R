@@ -1,5 +1,5 @@
 # library(dplyr)
-library(tidyr)
+suppressMessages((library(tidyr)))
 
 args <- commandArgs(trailingOnly = TRUE)
 

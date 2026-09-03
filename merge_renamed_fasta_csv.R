@@ -1,7 +1,7 @@
 # Merge rename_fasta.py CSV files to get combined CSV with old IDs and new IDs for each file
 # Eg. merge_renamed_fasta_csv.R df1.csv df2.csv > output.csv
 
-library(dplyr)
+suppressMessages(library(dplyr))
 
 # Read in CSVs from rename_fasta.py
 process_csv <- function(file) {

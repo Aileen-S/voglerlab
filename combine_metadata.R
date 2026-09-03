@@ -1,6 +1,5 @@
 # Load necessary libraries
-library(dplyr)
-library(getopt)
+suppressPackageStartupMessages(library(dplyr, getopt))
 
 # Define the command-line arguments
 spec <- matrix(c(

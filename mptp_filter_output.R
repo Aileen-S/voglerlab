@@ -1,6 +1,6 @@
-library(seqinr)
-library(dplyr)
-library(getopt)
+suppressMessages(library(dplyr))
+suppressMessages(library(seqinr))
+suppressMessages(library(getopt))
 
 # Filter fasta based on MPTP output - keep longest sequence for each delimited species
 # Option to add CSV file with species names/IDs, to keep longest for each even if removed by PTP result

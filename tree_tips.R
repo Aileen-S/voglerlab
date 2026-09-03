@@ -3,7 +3,7 @@
 # Example: Rscript tree_tips.R --nexus < tree.nex > tree_tips.txt
 # TO get IDs and full names, use --csv
 
-library(ape, quietly = TRUE)
+suppressMessages(library(ape))
 
 args <- commandArgs(trailingOnly = TRUE)
 is_nexus <- "--nexus" %in% args

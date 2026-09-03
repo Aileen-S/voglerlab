@@ -1,7 +1,4 @@
-library(seqinr, quietly = TRUE)
-library(dplyr, quietly = TRUE)
-library(stringr, quietly = TRUE)
-library(getopt, quietly = TRUE)
+suppressPackageStartupMessages(library(seqinr, dplyr, stringr, getopt))
 
 spec <- matrix(c(
   'input',    'i', 1, 'character', 'Input fasta',
