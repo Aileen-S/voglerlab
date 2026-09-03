@@ -79,7 +79,7 @@ if (!is.null(opt$csv)) {
   meta <- read.csv(opt$csv)
   meta[meta == ''] <- NA
   meta <- meta %>% 
-    select(opt$tips, opt$filter, source, binomial, order, suborder, infraorder, superfamily, family, subfamily, tribe, subtribe, genus, subgenus, species, subspecies, country, region, latitude, longitude) %>%
+    select(opt$tips, opt$filter, source, species, order, suborder, infraorder, superfamily, family, subfamily, tribe, subtribe, genus, subgenus, species_epiphet, subspecies_epiphet, country, region, latitude, longitude) %>%
     rename(rec_id = opt$tips, filter = opt$filter)
   add <- merge(add, meta, by = 'rec_id', all.x = TRUE)
 
