@@ -1,4 +1,9 @@
-suppressPackageStartupMessages(library(seqinr, dplyr, stringr, getopt))
+suppressMessages(library(dplyr))
+suppressMessages(library(seqinr))
+suppressMessages(library(stringr))
+suppressMessages(library(getopt))
+
+library(getopt)
 
 spec <- matrix(c(
   'input',    'i', 1, 'character', 'Input fasta',

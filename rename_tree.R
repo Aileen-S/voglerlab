@@ -1,4 +1,6 @@
-suppressPackageStartupMessages(library(tidyverse, ape, getopt))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(ape))
+suppressPackageStartupMessages(library(getopt))
 
 # Define the command-line arguments
 spec <- matrix(c(

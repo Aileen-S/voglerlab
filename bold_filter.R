@@ -1,8 +1,9 @@
 # Filter output from BOLD v5 API
 
 # Load packages
-suppressPackageStartupMessages(library(dplyr, readr, getopt))
-
+suppressMessages(library(dplyr))
+suppressMessages(library(readr))
+suppressMessages(library(getopt))
 
 spec <- matrix(c(
   'input',      'i', 1, 'character', 'Input BOLD metadata tsv(s) to be filtered. Comma separates list if multiple files',
