@@ -3,14 +3,13 @@ suppressMessages(library(seqinr))
 suppressMessages(library(stringr))
 suppressMessages(library(getopt))
 
-library(getopt)
-
 spec <- matrix(c(
   'input',    'i', 1, 'character', 'Input fasta',
   'csv',      'c', 2, 'character', 'Metadata CSV. Specify custom labels with -l flag, or default assumes new names in first column, old names in second',
   'tips',     't', 2, 'character', 'Column name with original IDs (if not second column)',
   'label',    'l', 2, 'character', 'Custom labels: specify columns to use in labels: comma separated column names in order
                                     Default without this option is new names in first column, old names in second column',
+  'keep_dups', 'k', 2, 'logical', 'Keep duplicate IDs in output under old IDs (default remove)',
   'output',   'o', 1, 'character', 'Output fasta',
   'renamed',  'r', 2, 'logical',   'CSV output with old and new tips names',
   'drop_old', 'd', 2, 'logical',   'Drop original tip names (default keep old name at start of new name)'
@@ -56,6 +55,33 @@ rename_fasta <- function(seqs, df, opt) {
       select(old_id, fasta_id) %>%
       distinct()
   
+  # Check for duplicates
+  if (nrow(df) > length(unique(df$fasta_id))){
+    lengths <- data.frame(rec_id = character(), seq_length = integer())
+    for (id in names(seqs)) {
+      seq_nogap <- seqs[[id]][!seqs[[id]] %in% c("-", "N")]
+      len <- getLength(seq_nogap)
+      lengths <- add_row(lengths, rec_id = id, seq_length = len)
+    }
+    df <- merge(df, lengths, by.x='old_id', by.y='rec_id', all=T)
+    longest <- df %>%
+      arrange(fasta_id, desc(seq_length)) %>% 
+      distinct(fasta_id, .keep_all = TRUE) %>% 
+      ungroup()
+
+    if (is.null(opt$keep_dups) || opt$keep_dups == FALSE) {
+      cat('Removing duplicate IDs')
+      df <- df %>%
+        mutate(removed = ifelse(old_id %in% longest$old_id, '', TRUE))
+    } else {
+      cat('Keeping duplicate IDs under old names')
+      df <- df %>%
+        mutate(fasta_id = ifelse(old_id %in% longest$old_id, fasta_id, old_id))
+    }
+  }
+  df <- df %>% arrange(fasta_id)
+  
+  # Rename sequences
   lookup <- setNames(df$fasta_id, df$old_id)
   matched <- lookup[names(seqs)]
   renamed <- seqs
@@ -66,17 +92,20 @@ rename_fasta <- function(seqs, df, opt) {
 
 # opt <- data.frame(
 #   input = c('test.fasta'),
-#   csv = c('~/scratch/adephaga/metadata/standardised_all_metadata.csv'),
+#   csv = c('~/scratch/adephaga/metadata/standardised_ptp.csv'),
 #   tips = c('rec_id'),
-#   label = c('suborder,superfamily,family,subfamily,tribe,genus,species,subspecies'),
-#   output = c('12S_renamed.fasta')
+#   label = c('ptp_id'),
+#   output = c('test.out'),
+#   renamed = c('test.csv'),
+#   drop_old = c(T),
+#   keep_dups = c(F)
 # )
 
 seqs <- read.fasta(opt$input)
-df <- read.csv(opt$csv)
-output <- rename_fasta(seqs, df, opt)
+tax <- read.csv(opt$csv)
+output <- rename_fasta(seqs, tax, opt)
 write.fasta(output$renamed_seqs, names(output$renamed_seqs), opt$output)
 
 if (!is.null(opt$renamed)) {
-  write.csv(output$renamed_df, opt$renamed)
+  write.csv(output$renamed_df, opt$renamed, row.names=FALSE)
 }
