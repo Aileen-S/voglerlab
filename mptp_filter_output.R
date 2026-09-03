@@ -22,9 +22,12 @@ if (is.null(opt$mptp) & is.null(opt$csv)) {
   stop('Must specify either mPTP output or CSV file with species names/IDs')
 }
 
-# opt <- data.frame(input = 'COX1b.fasta',
-#                   output = 'COX1b_filtered.fasta',
-#                   mptp = 'COX1b.mptp.txt',
+# opt <- data.frame(input = '~/scratch/adephaga/delimitation/01_raxml/18S.fasta',
+#                   output = '18s.tax.fasta',
+#                   csv = '~/scratch/adephaga/metadata/standardised_all_metadata.csv',
+#                   tips = 'rec_id',
+#                   filter = 'id',
+#                   list = '18s.ptp.ids',
 #                   strip = TRUE)
 
 # Read fasta
@@ -79,8 +82,8 @@ if (!is.null(opt$csv)) {
   meta <- read.csv(opt$csv)
   meta[meta == ''] <- NA
   meta <- meta %>% 
-    select(opt$tips, opt$filter, source, species, order, suborder, infraorder, superfamily, family, subfamily, tribe, subtribe, genus, subgenus, species_epiphet, subspecies_epiphet, country, region, latitude, longitude) %>%
-    rename(rec_id = opt$tips, filter = opt$filter)
+    select(opt$tips, opt$filter) %>%#, source, species, order, suborder, infraorder, superfamily, family, subfamily, tribe, subtribe, genus, subgenus, species_epiphet, subspecies_epiphet, country, region, latitude, longitude) %>%
+    rename(rec_id = opt$tips, filter = opt$filter) %>% distinct()
   add <- merge(add, meta, by = 'rec_id', all.x = TRUE)
 
 # Find longest for each id
