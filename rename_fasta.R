@@ -105,7 +105,9 @@ seqs <- read.fasta(opt$input)
 tax <- read.csv(opt$csv)
 output <- rename_fasta(seqs, tax, opt)
 write.fasta(output$renamed_seqs, names(output$renamed_seqs), opt$output)
+cat('Output written to', opt$output, '\n')
 
 if (!is.null(opt$renamed)) {
   write.csv(output$renamed_df, opt$renamed, row.names=FALSE)
+  cat('Output CSV written to', opt$renamed)
 }
