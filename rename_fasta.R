@@ -75,7 +75,7 @@ rename_fasta <- function(seqs, df, opt) {
 seqs <- read.fasta(opt$input)
 df <- read.csv(opt$csv)
 output <- rename_fasta(seqs, df, opt)
-write.fasta(output$renamed_seqs, names(renamed), opt$output)
+write.fasta(output$renamed_seqs, names(output$renamed_seqs), opt$output)
 
 if (!is.null(opt$renamed)) {
   write.csv(output$renamed_df, opt$renamed)
