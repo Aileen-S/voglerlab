@@ -12,7 +12,7 @@ spec <- matrix(c(
   'label',    'l', 2, 'character', 'Custom labels: specify columns to use in labels: comma separated column names in order
                                     Default without this option is new names in first column, old names in second column',
   'output',   'o', 1, 'character', 'Output fasta',
-  # 'renamed',  'r', 2, 'logical',   'CSV output with old and new tips names',
+  'renamed',  'r', 2, 'logical',   'CSV output with old and new tips names',
   'drop_old', 'd', 2, 'logical',   'Drop original tip names (default keep old name at start of new name)'
   # 'prefix',   'p', 2, 'character', 'Add specified string to the start of all labels'
 ), byrow = TRUE, ncol = 5)
@@ -61,7 +61,7 @@ rename_fasta <- function(seqs, df, opt) {
   renamed <- seqs
   new_labels <- ifelse(is.na(matched), names(renamed), matched)
   names(renamed) <- new_labels
-  return(renamed)
+  return(renamed, df)
 }
 
 # opt <- data.frame(
@@ -76,3 +76,7 @@ seqs <- read.fasta(opt$input)
 df <- read.csv(opt$csv)
 renamed <- rename_fasta(seqs, df, opt)
 write.fasta(renamed, names(renamed), opt$output)
+
+if (!is.null(opt$renamed)) {
+  write.csv(df, opt$renamed)
+}
