@@ -24,6 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Align and clean BUSCO v6 output sequences. Requires MAFFT, CIAlign and trimAl")
     parser.add_argument("-i", "--input", type=str, help="Input directory containing completed BUSCO runs", required=True)
     parser.add_argument("-o", "--output", type=str, help="Output directory to store results", required=True)
+    parser.add_argument("-p", "--prefix", type=str, help="Output prefix")
     parser.add_argument("-it", "--inclusion_threshold", type=float, help="Minimum fraction of BUSCO genes present for inclusion in supermatrix (default=0.5)", default=0.5)
     parser.add_argument("-tt", "--trimal_threshold", type=float, help="Minimum non-gap fraction per column for inclusion in supermatrix (default=0.5)", default=0.5)
     parser.add_argument("-t", "--threads", type=int, help="Number of threads to use")
@@ -256,7 +257,6 @@ def concatenate(busco_run_names, alignments):
                 partitions[gene] = {'start' : start,
                                 'end' : end}
                 p += length
-                print(p)
 
         first = False
                 
@@ -296,14 +296,18 @@ def main():
             SeqIO.write(alignments[aln], output, "fasta")
 
     supermatrix, partitions = concatenate(busco_run_names, alignments)
-
-    with open(f"{output_directory}/supermatrix.fasta", "w", ) as output:
+    
+    if args.prefix:
+        prefix = f"{args.prefix}_"
+    else:
+        prefix = ""
+    with open(f"{output_directory}/{prefix}supermatrix.fasta", "w", ) as output:
         SeqIO.write(supermatrix, output, "fasta")
 
     # RAxML format, eg: "AA, 84030at7041=1-984"
     with open (f"{output_directory}/partitions.txt", "w") as output:
         for busco_gene, coordinates in partitions.items():
-            output.write(f"AA, {busco_gene} = {coordinates['start']}-{coordinates['end']};\n")
+            output.write(f"AA, {busco_gene} = {coordinates['start']}-{coordinates['end']}\n")
 
 
 if __name__ == "__main__":
