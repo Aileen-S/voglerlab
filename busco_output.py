@@ -296,16 +296,17 @@ def main():
             SeqIO.write(alignments[aln], output, "fasta")
 
     supermatrix, partitions = concatenate(busco_run_names, alignments)
-    
+
     if args.prefix:
         prefix = f"{args.prefix}_"
     else:
         prefix = ""
+
     with open(f"{output_directory}/{prefix}supermatrix.fasta", "w", ) as output:
         SeqIO.write(supermatrix, output, "fasta")
 
     # RAxML format, eg: "AA, 84030at7041=1-984"
-    with open (f"{output_directory}/partitions.txt", "w") as output:
+    with open (f"{output_directory}/{prefix}partitions.txt", "w") as output:
         for busco_gene, coordinates in partitions.items():
             output.write(f"AA, {busco_gene} = {coordinates['start']}-{coordinates['end']}\n")
 
