@@ -108,7 +108,7 @@ def write_csv(count, output_csv, partitions):
 
 def main():
     args = parse_args()
-    format = "phylip" if args.alt_format else "fasta"
+    format = "phylip-relaxed" if args.alt_format else "fasta"
     if args.partitions:
         if format == "fasta":
             partitions = read_catfasta2phyml_partitions(args.partitions) 
