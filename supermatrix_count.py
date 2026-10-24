@@ -9,7 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Count number of genes and number of bases per gene in supermatrix")
     parser.add_argument("-f", "--fasta", type=str, help="Input supermatrix fasta")
     parser.add_argument("-p", "--partitions", type=str, help="Optional catfasta2phyml output partition file")
-    parser.add_argumnet("-a", "--alt_format", type=str, help="Supermatrix and partition file in alternative format (FASconCAT)")
+    parser.add_argumnet("-a", "--alt_format", action='store_true', help="Supermatrix and partition file in alternative format (FASconCAT)")
     parser.add_argument("-o", "--output", type=str, help="Output csv file")
 
     return parser.parse_args()
