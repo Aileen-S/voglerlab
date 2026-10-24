@@ -110,7 +110,7 @@ def main():
     args = parse_args()
     format = "phylip" if args.alt_format else "fasta"
     if args.partitions:
-        if format = "fasta":
+        if format == "fasta":
             partitions = read_catfasta2phyml_partitions(args.partitions) 
         else
             partitions = read_FASconCCAT_partitions(args.partitions)
