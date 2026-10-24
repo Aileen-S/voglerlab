@@ -8,14 +8,15 @@ import string
 def parse_args():
     parser = argparse.ArgumentParser(description="Count number of genes and number of bases per gene in supermatrix")
     parser.add_argument("-f", "--fasta", type=str, help="Input supermatrix fasta")
-    parser.add_argument("-p", "--partitions", type=str, help="optional catfasta2phyml output partition file")
+    parser.add_argument("-p", "--partitions", type=str, help="Optional catfasta2phyml output partition file")
+    parser.add_argumnet("-a", "--alt_format", type=str, help="Supermatrix and partition file in alternative format (FASconCAT)")
     parser.add_argument("-o", "--output", type=str, help="Output csv file")
 
     return parser.parse_args()
 
 
 # Read partition file
-def read_partitions(partition_file):
+def read_catfasta2phyml_partitions(partition_file):
     with open(partition_file) as file:
         partitions = {}
         lines = file.readlines()
@@ -34,8 +35,35 @@ def read_partitions(partition_file):
     print(f'{len(list(partitions.keys()))} partitions in partition file')
     return partitions
 
-def process_fasta(input_fasta, partitions):
-    records = SeqIO.parse(input_fasta, "fasta")
+def read_FASconCCAT_partitions(partition_file):
+    with open(partition_file) as file:
+        partitions = {}
+        lines = file.readlines()
+        for line in lines:
+            line = line.strip()
+            part, crds = line.split(' = ')
+            # Get partition location and length
+            crds = crds.split('-')
+            start = int(crds[0]) - 1
+            end = int(crds[1])
+            length = end - start
+            # Get partition name
+            part = part.split(', ')[-1]
+            partitions[part] = [start, end, length]
+
+    print(f'{len(list(partitions.keys()))} partitions in partition file')
+    return partitions
+
+def no_partitions(fasta, format="fasta"):
+    records = SeqIO.parse(fasta, format)
+    length = len(next(records).seq)
+    start = 0
+    end = length
+    partitions = {fasta: [start, end, length]}
+    return partitions
+
+def process_fasta(input_fasta, partitions, format="fasta"):
+    records = SeqIO.parse(input_fasta, format)
     count = {}
     # With partition file
     for rec in records:
@@ -68,22 +96,28 @@ def write_csv(count, output_csv, partitions):
         for rec in count.keys():
             part_rep = []
             x += 1
-            row = []
+            gene_lengths = []
             for name in partition_names:
                 length = count[rec][name]
-                row.append(length)
+                gene_lengths.append(length)
                 # Write partition_rep string
                 part_rep.append(partition_codes[name]) if length > 0 else part_rep.append('-')
-            row[1] = [rec, ''.join(part_rep), count[rec]['total_partitions'], count[rec]['total_nucleotides']] + row
+            row = [rec, ''.join(part_rep), count[rec]['total_partitions'], count[rec]['total_nucleotides']] + gene_lengths
             writer.writerow(row)
     print(f'{x} records written to {output_csv}')
 
 def main():
     args = parse_args()
+    format = "phylip" if args.alt_format else "fasta"
     if args.partitions:
-        partitions = read_partitions(args.partitions)
-        partitions_genes = partitions.keys()    
-    gene_counts = process_fasta(args.fasta, partitions)
+        if format = "fasta":
+            partitions = read_catfasta2phyml_partitions(args.partitions) 
+        else
+            partitions = read_FASconCCAT_partitions(args.partitions)
+        partitions_genes = partitions.keys()
+    else:
+        partitions = no_partitions(args.fasta)
+    gene_counts = process_fasta(args.fasta, partitions, format)
     write_csv(gene_counts, args.output, partitions)
 
 if __name__ == "__main__":
