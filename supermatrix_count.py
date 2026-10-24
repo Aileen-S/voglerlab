@@ -112,7 +112,7 @@ def main():
     if args.partitions:
         if format == "fasta":
             partitions = read_catfasta2phyml_partitions(args.partitions) 
-        else
+        else:
             partitions = read_FASconCCAT_partitions(args.partitions)
         partitions_genes = partitions.keys()
     else:
